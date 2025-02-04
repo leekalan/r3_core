@@ -40,18 +40,28 @@ impl Vertex {
 
 const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [0.0, 0.5, 0.0],
-        color: [1.0, 0.0, 0.0],
-    },
+        position: [-0.0868241, 0.49240386, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // A
     Vertex {
-        position: [-0.5, -0.5, 0.0],
-        color: [0.0, 1.0, 0.0],
-    },
+        position: [-0.49513406, 0.06958647, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // B
     Vertex {
-        position: [0.5, -0.5, 0.0],
-        color: [0.0, 0.0, 1.0],
-    },
+        position: [-0.21918549, -0.44939706, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // C
+    Vertex {
+        position: [0.35966998, -0.3473291, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // D
+    Vertex {
+        position: [0.44147372, 0.2347359, 0.0],
+        color: [0.5, 0.0, 0.5],
+    }, // E
 ];
+
+const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
 
 fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
     let pipeline_layout =
@@ -70,6 +80,15 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
+        });
+
+    let index_buffer = app
+        .renderer
+        .device
+        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(INDICES),
+            usage: wgpu::BufferUsages::INDEX,
         });
 
     let shader = app
@@ -127,7 +146,8 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
         .render_pass()
         .set_pipeline(&render_pipeline)
         .set_vertex_buffer(0, vertex_buffer.slice(..))
-        .draw(0..VERTICES.len() as u32, 0..1);
+        .set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16)
+        .draw_indexed(0..INDICES.len() as u32, 0, 0..1);
 
     encoder.submit_and_present();
 }

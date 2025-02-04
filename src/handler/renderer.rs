@@ -160,21 +160,40 @@ impl RenderPass<'_> {
     #[inline]
     pub fn set_pipeline(&mut self, pipeline: &wgpu::RenderPipeline) -> &mut Self {
         self.render_pass.set_pipeline(pipeline);
-
         self
     }
 
     #[inline]
     pub fn set_vertex_buffer(&mut self, binding: u32, buffer: BufferSlice) -> &mut Self {
         self.render_pass.set_vertex_buffer(binding, buffer);
+        self
+    }
 
+    #[inline]
+    pub fn set_index_buffer(
+        &mut self,
+        buffer: BufferSlice,
+        index_format: wgpu::IndexFormat,
+    ) -> &mut Self {
+        self.render_pass.set_index_buffer(buffer, index_format);
         self
     }
 
     #[inline]
     pub fn draw(&mut self, vertices: Range<u32>, instances: Range<u32>) -> &mut Self {
         self.render_pass.draw(vertices, instances);
+        self
+    }
 
+    #[inline]
+    pub fn draw_indexed(
+        &mut self,
+        indices: Range<u32>,
+        base_vertex: i32,
+        instances: Range<u32>,
+    ) -> &mut Self {
+        self.render_pass
+            .draw_indexed(indices, base_vertex, instances);
         self
     }
 }
