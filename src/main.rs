@@ -1,11 +1,11 @@
-use futures::executor::block_on;
 use r3_core::{handler::render_context::RenderContextConfig, prelude::*};
 
 use wgpu::util::DeviceExt;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 
-fn main() {
-    let render_context = block_on(RenderContext::new(RenderContextConfig::default()));
+#[tokio::main]
+async fn main() {
+    let render_context = RenderContext::new(RenderContextConfig::default()).await;
 
     env_logger::init();
     let event_loop = EventLoop::new().unwrap();
