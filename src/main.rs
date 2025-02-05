@@ -75,21 +75,23 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
                 push_constant_ranges: &[],
             });
 
-    let vertex_buffer = app.render_context().device
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
+    let vertex_buffer =
+        app.render_context()
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Vertex Buffer"),
+                contents: bytemuck::cast_slice(VERTICES),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
 
-    let index_buffer = app
-        .render_context()
-        .device
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(INDICES),
-            usage: wgpu::BufferUsages::INDEX,
-        });
+    let index_buffer =
+        app.render_context()
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Index Buffer"),
+                contents: bytemuck::cast_slice(INDICES),
+                usage: wgpu::BufferUsages::INDEX,
+            });
 
     let shader = app
         .render_context()
