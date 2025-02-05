@@ -1,27 +1,23 @@
-use std::sync::Arc;
+use crate::prelude::RenderContext;
 
-use winit::{dpi::PhysicalSize, window::Window};
-
-use super::renderer::WindowRenderer;
+use super::window::{Window, WindowCommandEncoder};
 
 pub struct App<S> {
-    pub window: Arc<Window>,
-    pub renderer: WindowRenderer,
+    pub window: Window,
     pub state: S,
 }
 
 impl<S> App<S> {
     #[inline]
-    pub fn new(window: Arc<Window>, renderer: WindowRenderer, state: S) -> Self {
-        Self {
-            window,
-            renderer,
-            state,
-        }
+    pub fn new(window: Window, state: S) -> Self {
+        Self { window, state }
     }
 
-    #[inline]
-    pub fn resize(&mut self, new_size: PhysicalSize<u32>) {
-        self.renderer.resize(new_size);
+    pub fn render_context(&self) -> &RenderContext {
+        &self.window.render_context
+    }
+
+    pub fn command_encoder(&self) -> WindowCommandEncoder {
+        self.window.command_encoder()
     }
 }

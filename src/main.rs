@@ -1,17 +1,19 @@
-use r3_core::prelude::*;
+use futures::executor::block_on;
+use r3_core::{handler::render_context::RenderContextConfig, prelude::*};
 
 use wgpu::util::DeviceExt;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 
 fn main() {
+    let render_context = block_on(RenderContext::new(RenderContextConfig::default()));
+
     env_logger::init();
     let event_loop = EventLoop::new().unwrap();
 
     event_loop.set_control_flow(ControlFlow::Wait);
 
-    let mut handler = Handler::<(), _>::new(
-        HandlerConfig::new(WindowRendererConfig::default(), ()).on_start(Box::new(on_start)),
-    );
+    let mut handler =
+        Handler::<(), _>::new(HandlerConfig::new(render_context, ()).on_start(Box::new(on_start)));
 
     handler.init(event_loop);
 }
@@ -65,7 +67,7 @@ const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
 
 fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
     let pipeline_layout =
-        app.renderer
+        app.render_context()
             .device
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Pipeline Layout"),
@@ -73,9 +75,7 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
                 push_constant_ranges: &[],
             });
 
-    let vertex_buffer = app
-        .renderer
-        .device
+    let vertex_buffer = app.render_context().device
         .create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(VERTICES),
@@ -83,7 +83,7 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
         });
 
     let index_buffer = app
-        .renderer
+        .render_context()
         .device
         .create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
@@ -92,7 +92,7 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
         });
 
     let shader = app
-        .renderer
+        .render_context()
         .device
         .create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
@@ -100,7 +100,7 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
         });
 
     let render_pipeline =
-        app.renderer
+        app.render_context()
             .device
             .create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("Render Pipeline"),
@@ -115,7 +115,7 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
                     module: &shader,
                     entry_point: Some("fs_main"),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: app.renderer.surface_config.format,
+                        format: app.window.surface_config.format,
                         blend: Some(wgpu::BlendState::REPLACE),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
@@ -140,7 +140,7 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
                 cache: None,
             });
 
-    let mut encoder = app.renderer.command_encoder();
+    let mut encoder = app.window.command_encoder();
 
     encoder
         .render_pass()
@@ -149,5 +149,5 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
         .set_index_buffer(index_buffer.slice(..), wgpu::IndexFormat::Uint16)
         .draw_indexed(0..INDICES.len() as u32, 0, 0..1);
 
-    encoder.submit_and_present();
+    encoder.present();
 }

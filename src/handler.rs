@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use futures::executor::block_on;
+use render_context::RenderContext;
+use window::{Window, WindowConfig};
 use winit::{
     application::ApplicationHandler,
     event::*,
@@ -9,10 +10,10 @@ use winit::{
 };
 
 use app::App;
-use renderer::{WindowRenderer, WindowRendererConfig};
 
 pub mod app;
-pub mod renderer;
+pub mod render_context;
+pub mod window;
 
 pub type OnStartCallback<S> = dyn Fn(&mut App<S>, &ActiveEventLoop);
 
@@ -47,30 +48,33 @@ impl<S> OnEventCallback<S> for () {
 pub struct HandlerConfig<S, OnEvent: OnEventCallback<S>> {
     state: S,
     window_attributes: Option<WindowAttributes>,
-    renderer_config: WindowRendererConfig,
+    window_config: Option<WindowConfig>,
+    render_context: Arc<RenderContext>,
     on_start: Option<Box<OnStartCallback<S>>>,
     callback: OnEvent,
 }
 
 impl<S, OnEvent: OnEventCallback<S>> HandlerConfig<S, OnEvent> {
-    pub fn new(renderer_config: WindowRendererConfig, callback: OnEvent) -> Self
+    pub fn new(render_context: Arc<RenderContext>, callback: OnEvent) -> Self
     where
         S: Default,
     {
         Self {
             state: S::default(),
             window_attributes: None,
-            renderer_config,
+            window_config: None,
+            render_context,
             callback,
             on_start: None,
         }
     }
 
-    pub fn with_state(renderer_config: WindowRendererConfig, state: S, callback: OnEvent) -> Self {
+    pub fn with_state(render_context: Arc<RenderContext>, state: S, callback: OnEvent) -> Self {
         Self {
             state,
             window_attributes: None,
-            renderer_config,
+            window_config: None,
+            render_context,
             callback,
             on_start: None,
         }
@@ -107,15 +111,19 @@ impl<S, OnEvent: OnEventCallback<S>> ApplicationHandler for Handler<S, OnEvent> 
         if let Handler::Uninit(config) = self {
             let config = config.take().unwrap();
 
-            let window = Arc::new(
+            let winit_window = Arc::new(
                 event_loop
                     .create_window(config.window_attributes.unwrap_or_default())
                     .unwrap(),
             );
 
-            let renderer = block_on(WindowRenderer::new(window.clone(), config.renderer_config));
+            let window = Window::new(
+                winit_window,
+                config.render_context,
+                config.window_config.unwrap_or_default(),
+            );
 
-            let mut app = App::new(window, renderer, config.state);
+            let mut app = App::new(window, config.state);
 
             if let Some(on_start) = config.on_start {
                 on_start(&mut app, event_loop);
@@ -138,7 +146,7 @@ impl<S, OnEvent: OnEventCallback<S>> ApplicationHandler for Handler<S, OnEvent> 
             event_loop.exit();
         } else if let WindowEvent::Resized(new_size) = event {
             if let Handler::Active { app, .. } = self {
-                app.resize(new_size);
+                app.window.resize(new_size);
             }
         }
 

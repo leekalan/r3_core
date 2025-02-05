@@ -1,5 +1,6 @@
 pub use crate::handler::{
     app::App,
-    renderer::{WindowRenderer, WindowRendererConfig},
+    render_context::{CommandEncoder, RenderContext, RenderPass},
+    window::{Window, WindowCommandEncoder, WindowConfig},
     Handler, HandlerConfig,
 };
