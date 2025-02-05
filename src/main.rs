@@ -1,3 +1,5 @@
+use std::num::NonZero;
+
 use r3_core::{handler::render_context::RenderContextConfig, prelude::*};
 
 use wgpu::util::DeviceExt;
@@ -84,14 +86,24 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             });
 
-    app.render_context().queue.write_buffer(
-        &vertex_buffer,
-        0,
-        bytemuck::cast_slice(&[Vertex {
-            position: [-0.0868241, 0.49240386, 0.0],
-            color: [1.0, 0.0, 0.0],
-        }]),
-    );
+    const NEW_VERT: &[Vertex] = &[Vertex {
+        position: [-0.0868241, 0.49240386, 0.0],
+        color: [1.0, 0.0, 0.0],
+    }];
+
+    let mut write = app
+        .render_context()
+        .queue
+        .write_buffer_with(
+            &vertex_buffer,
+            0,
+            NonZero::new(size_of::<Vertex>() as u64).unwrap(),
+        )
+        .unwrap();
+
+    write.copy_from_slice(bytemuck::cast_slice(NEW_VERT));
+
+    drop(write);
 
     let index_buffer =
         app.render_context()
