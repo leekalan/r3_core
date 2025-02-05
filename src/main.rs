@@ -42,7 +42,7 @@ impl Vertex {
 
 const VERTICES: &[Vertex] = &[
     Vertex {
-        position: [-0.0868241, 0.49240386, 0.0],
+        position: [0.0, 1.0, 0.0],
         color: [1.0, 0.0, 0.0],
     }, // A
     Vertex {
@@ -81,8 +81,17 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Vertex Buffer"),
                 contents: bytemuck::cast_slice(VERTICES),
-                usage: wgpu::BufferUsages::VERTEX,
+                usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             });
+
+    app.render_context().queue.write_buffer(
+        &vertex_buffer,
+        0,
+        bytemuck::cast_slice(&[Vertex {
+            position: [-0.0868241, 0.49240386, 0.0],
+            color: [1.0, 0.0, 0.0],
+        }]),
+    );
 
     let index_buffer =
         app.render_context()
