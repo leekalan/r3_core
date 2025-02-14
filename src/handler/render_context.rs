@@ -1,6 +1,6 @@
-use std::{ops::Range, sync::Arc};
+use std::sync::Arc;
 
-use wgpu::BufferSlice;
+use super::layout::{shader::ShaderHandle, Vertex};
 
 #[derive(Default)]
 pub struct RenderContextConfig {
@@ -80,6 +80,7 @@ impl CommandEncoder<'_> {
         &mut self,
         view: &wgpu::TextureView,
         clear: Option<wgpu::Color>,
+        depth_stencil_attachment: Option<wgpu::RenderPassDepthStencilAttachment>,
     ) -> RenderPass {
         let render_pass = self.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
@@ -87,16 +88,11 @@ impl CommandEncoder<'_> {
                 view,
                 resolve_target: None,
                 ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(clear.unwrap_or(wgpu::Color {
-                        r: 0.2,
-                        g: 0.2,
-                        b: 0.2,
-                        a: 1.0,
-                    })),
+                    load: wgpu::LoadOp::Clear(clear.unwrap_or(wgpu::Color::TRANSPARENT)),
                     store: wgpu::StoreOp::Store,
                 },
             })],
-            depth_stencil_attachment: None,
+            depth_stencil_attachment,
             ..Default::default()
         });
 
@@ -118,47 +114,19 @@ pub struct RenderPass<'r> {
 
 impl<'r> RenderPass<'r> {
     #[inline]
-    pub fn inner(&mut self) -> &'r mut wgpu::RenderPass {
+    pub fn inner(&mut self) -> &mut wgpu::RenderPass<'r> {
         &mut self.render_pass
     }
 
     #[inline]
-    pub fn set_pipeline(&mut self, pipeline: &wgpu::RenderPipeline) -> &mut Self {
-        self.render_pass.set_pipeline(pipeline);
+    pub fn set_shader<V: Vertex>(&mut self, shader: &ShaderHandle<V>) -> &mut Self {
+        shader.set_shader(self);
         self
     }
 
     #[inline]
-    pub fn set_vertex_buffer(&mut self, binding: u32, buffer: BufferSlice) -> &mut Self {
-        self.render_pass.set_vertex_buffer(binding, buffer);
-        self
-    }
-
-    #[inline]
-    pub fn set_index_buffer(
-        &mut self,
-        buffer: BufferSlice,
-        index_format: wgpu::IndexFormat,
-    ) -> &mut Self {
-        self.render_pass.set_index_buffer(buffer, index_format);
-        self
-    }
-
-    #[inline]
-    pub fn draw(&mut self, vertices: Range<u32>, instances: Range<u32>) -> &mut Self {
-        self.render_pass.draw(vertices, instances);
-        self
-    }
-
-    #[inline]
-    pub fn draw_indexed(
-        &mut self,
-        indices: Range<u32>,
-        base_vertex: i32,
-        instances: Range<u32>,
-    ) -> &mut Self {
-        self.render_pass
-            .draw_indexed(indices, base_vertex, instances);
+    pub fn apply_shader_config<V: Vertex>(&mut self, shader: &ShaderHandle<V>) -> &mut Self {
+        shader.apply_config(self);
         self
     }
 }

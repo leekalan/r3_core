@@ -12,7 +12,9 @@ use winit::{
 use app::App;
 
 pub mod app;
+pub mod layout;
 pub mod render_context;
+pub mod texture;
 pub mod window;
 
 pub type OnStartCallback<S> = dyn Fn(&mut App<S>, &ActiveEventLoop);
@@ -48,32 +50,41 @@ impl<S> OnEventCallback<S> for () {
 pub struct HandlerConfig<S, OnEvent: OnEventCallback<S>> {
     state: S,
     window_attributes: Option<WindowAttributes>,
-    window_config: Option<WindowConfig>,
+    window_config: WindowConfig,
     render_context: Arc<RenderContext>,
     on_start: Option<Box<OnStartCallback<S>>>,
     callback: OnEvent,
 }
 
 impl<S, OnEvent: OnEventCallback<S>> HandlerConfig<S, OnEvent> {
-    pub fn new(render_context: Arc<RenderContext>, callback: OnEvent) -> Self
+    pub fn new(
+        render_context: Arc<RenderContext>,
+        window_config: WindowConfig,
+        callback: OnEvent,
+    ) -> Self
     where
         S: Default,
     {
         Self {
             state: S::default(),
             window_attributes: None,
-            window_config: None,
+            window_config,
             render_context,
             callback,
             on_start: None,
         }
     }
 
-    pub fn with_state(render_context: Arc<RenderContext>, state: S, callback: OnEvent) -> Self {
+    pub fn with_state(
+        render_context: Arc<RenderContext>,
+        window_config: WindowConfig,
+        state: S,
+        callback: OnEvent,
+    ) -> Self {
         Self {
             state,
             window_attributes: None,
-            window_config: None,
+            window_config,
             render_context,
             callback,
             on_start: None,
@@ -117,11 +128,7 @@ impl<S, OnEvent: OnEventCallback<S>> ApplicationHandler for Handler<S, OnEvent> 
                     .unwrap(),
             );
 
-            let window = Window::new(
-                winit_window,
-                config.render_context,
-                config.window_config.unwrap_or_default(),
-            );
+            let window = Window::new(winit_window, config.render_context, config.window_config);
 
             let mut app = App::new(window, config.state);
 

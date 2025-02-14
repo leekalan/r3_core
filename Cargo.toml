@@ -10,3 +10,6 @@ log = "0.4.25"
 wgpu = "24.0.1"
 tokio = {version = "1.43.0", features = ["full"]}
 bytemuck = { version = "1.16", features = [ "derive" ] }
+image = "0.25.5"
+slotmap = "1.0.7"
+reflect = "0.0.14"

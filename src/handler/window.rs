@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use super::render_context::{CommandEncoder, RenderContext, RenderPass};
+use super::{
+    render_context::{CommandEncoder, RenderContext, RenderPass},
+    texture::RawTexture,
+};
 
 #[derive(Default)]
 pub struct WindowConfig {
@@ -17,6 +20,8 @@ pub struct Window {
 
     pub surface_config: wgpu::SurfaceConfiguration,
     pub surface: wgpu::Surface<'static>,
+
+    pub depth_texture: RawTexture,
 
     pub clear: Option<wgpu::Color>,
 }
@@ -47,12 +52,19 @@ impl Window {
 
         surface.configure(&render_context.device, &surface_config);
 
+        let depth_texture = RawTexture::create_depth_texture(
+            &render_context.device,
+            &surface_config,
+            "Depth Texture",
+        );
+
         Self {
             window,
             render_context,
             surface_config,
             surface,
             clear: config.clear,
+            depth_texture,
         }
     }
 
@@ -63,6 +75,12 @@ impl Window {
             self.surface
                 .configure(&self.render_context.device, &self.surface_config);
         }
+
+        self.depth_texture = RawTexture::create_depth_texture(
+            &self.render_context.device,
+            &self.surface_config,
+            "Depth Texture",
+        );
     }
 
     #[inline]
@@ -82,6 +100,12 @@ impl Window {
             output,
             view,
             clear: self.clear,
+            depth_view: self.depth_texture.view.clone(),
+            depth_ops: Some(wgpu::Operations {
+                load: wgpu::LoadOp::Clear(1.0),
+                store: wgpu::StoreOp::Store,
+            }),
+            stencil_ops: None,
         }
     }
 }
@@ -91,12 +115,38 @@ pub struct WindowCommandEncoder<'r> {
     output: wgpu::SurfaceTexture,
     view: wgpu::TextureView,
     clear: Option<wgpu::Color>,
+    depth_view: wgpu::TextureView,
+    depth_ops: Option<wgpu::Operations<f32>>,
+    stencil_ops: Option<wgpu::Operations<u32>>,
 }
 
 impl WindowCommandEncoder<'_> {
+    pub fn set_clear(&mut self, clear: Option<wgpu::Color>) -> &mut Self {
+        self.clear = clear;
+        self
+    }
+
+    pub fn set_depth_ops(&mut self, depth_ops: Option<wgpu::Operations<f32>>) -> &mut Self {
+        self.depth_ops = depth_ops;
+        self
+    }
+
+    pub fn set_stencil_ops(&mut self, stencil_ops: Option<wgpu::Operations<u32>>) -> &mut Self {
+        self.stencil_ops = stencil_ops;
+        self
+    }
+
     #[inline]
     pub fn render_pass(&mut self) -> RenderPass {
-        self.command_encoder.render_pass(&self.view, self.clear)
+        self.command_encoder.render_pass(
+            &self.view,
+            self.clear,
+            Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.depth_view,
+                depth_ops: self.depth_ops,
+                stencil_ops: self.stencil_ops,
+            }),
+        )
     }
 
     #[inline]
