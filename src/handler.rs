@@ -14,7 +14,6 @@ use app::App;
 pub mod app;
 pub mod layout;
 pub mod render_context;
-pub mod texture;
 pub mod window;
 
 pub type OnStartCallback<S> = dyn Fn(&mut App<S>, &ActiveEventLoop);

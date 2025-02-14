@@ -1,17 +1,6 @@
 use std::{num::NonZero, sync::Arc};
 
-use r3_core::{
-    handler::{
-        layout::{
-            shader::{Shader, StaticShaderInstance},
-            Layout, LayoutConfig, Vertex,
-        },
-        render_context::RenderContextConfig,
-        texture::RawTexture,
-    },
-    prelude::*,
-};
-
+use r3_core::prelude::{core::*, *};
 use wgpu::util::DeviceExt;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 
@@ -41,24 +30,24 @@ async fn main() {
     handler.init(event_loop);
 }
 
-const VERTICES: &[NewVertex] = &[
-    NewVertex {
+const VERTICES: &[ColoredVertex] = &[
+    ColoredVertex {
         position: [0.0, 1.0, 0.0],
         color: [1.0, 0.0, 0.0],
     }, // A
-    NewVertex {
+    ColoredVertex {
         position: [-0.49513406, 0.06958647, 0.0],
         color: [1.0, 1.0, 0.0],
     }, // B
-    NewVertex {
+    ColoredVertex {
         position: [-0.21918549, -0.44939706, 0.0],
         color: [0.0, 1.0, 0.0],
     }, // C
-    NewVertex {
+    ColoredVertex {
         position: [0.35966998, -0.3473291, 0.0],
         color: [0.0, 0.0, 1.0],
     }, // D
-    NewVertex {
+    ColoredVertex {
         position: [0.44147372, 0.2347359, 0.0],
         color: [1.0, 0.0, 1.0],
     }, // E
@@ -80,7 +69,7 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             });
 
-    const NEW_VERT: &[NewVertex] = &[NewVertex {
+    const NEW_VERT: &[ColoredVertex] = &[ColoredVertex {
         position: [-0.0868241, 0.49240386, 0.0],
         color: [1.0, 0.0, 0.0],
     }];
@@ -91,7 +80,7 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
         .write_buffer_with(
             &vertex_buffer,
             0,
-            NonZero::new(size_of::<NewVertex>() as u64).unwrap(),
+            NonZero::new(size_of::<ColoredVertex>() as u64).unwrap(),
         )
         .unwrap();
 
@@ -126,34 +115,12 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
     encoder.present();
 }
 
-#[repr(C)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-struct NewVertex {
-    position: [f32; 3],
-    color: [f32; 3],
-}
-
-impl Vertex for NewVertex {
-    fn desc() -> wgpu::VertexBufferLayout<'static> {
-        use std::mem;
-
-        const ATTRIBS: [wgpu::VertexAttribute; 2] =
-            wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
-
-        wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &ATTRIBS,
-        }
-    }
-}
-
 struct NewShader {
     pipeline: wgpu::RenderPipeline,
 }
 
 impl NewShader {
-    fn new(layout: Layout<NewVertex>) -> Self {
+    fn new(layout: Layout<ColoredVertex>) -> Self {
         let shader =
             layout
                 .render_context()
@@ -170,7 +137,7 @@ impl NewShader {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: Some("vs_main"),
-                    buffers: &[NewVertex::desc()],
+                    buffers: &[ColoredVertex::desc()],
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                 },
                 fragment: Some(wgpu::FragmentState {
@@ -214,7 +181,7 @@ impl NewShader {
 }
 
 impl Shader for NewShader {
-    type V = NewVertex;
+    type V = ColoredVertex;
     type Config = ();
 
     fn set_shader(&self, render_pass: &mut RenderPass) {

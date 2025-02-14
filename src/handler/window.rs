@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use super::{
-    render_context::{CommandEncoder, RenderContext, RenderPass},
-    texture::RawTexture,
-};
+use crate::prelude::*;
 
 #[derive(Default)]
 pub struct WindowConfig {
