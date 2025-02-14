@@ -69,7 +69,7 @@ const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
 fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
     let layout = Layout::new(app.render_context().clone(), LayoutConfig::default());
 
-    let shader = StaticShaderInstance::new(Arc::new(NewShader::new(layout)), ()).into_handle();
+    let shader = StaticShaderInstance::new(Arc::new(NewShader::new(layout)), ()).handle();
 
     let vertex_buffer =
         app.render_context()

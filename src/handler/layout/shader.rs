@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::prelude::RenderPass;
 
@@ -14,7 +14,7 @@ pub trait Shader {
 
 pub struct ShaderInstance<S: Shader> {
     shader: Arc<S>,
-    config: Mutex<S::Config>,
+    config: RwLock<S::Config>,
 }
 
 impl<S: Shader> ShaderInstance<S> {
@@ -22,8 +22,31 @@ impl<S: Shader> ShaderInstance<S> {
     pub fn new(shader: Arc<S>, config: S::Config) -> Arc<Self> {
         Arc::new(Self {
             shader,
-            config: Mutex::new(config),
+            config: RwLock::new(config),
         })
+    }
+
+    #[inline]
+    pub fn shader(&self) -> &Arc<S> {
+        &self.shader
+    }
+
+    #[inline]
+    pub fn config(&self) -> RwLockReadGuard<S::Config> {
+        self.config.read().unwrap()
+    }
+
+    #[inline]
+    pub fn config_mut(&self) -> RwLockWriteGuard<S::Config> {
+        self.config.write().unwrap()
+    }
+
+    #[inline]
+    pub fn handle(self: &Arc<Self>) -> ShaderHandle<S::V>
+    where
+        S: 'static,
+    {
+        self.clone()
     }
 
     #[inline]
@@ -44,6 +67,29 @@ impl<S: Shader> StaticShaderInstance<S> {
     #[inline]
     pub fn new(shader: Arc<S>, config: S::Config) -> Arc<Self> {
         Arc::new(Self { shader, config })
+    }
+
+    #[inline]
+    pub fn shader(&self) -> &Arc<S> {
+        &self.shader
+    }
+
+    #[inline]
+    pub fn config(&self) -> &S::Config {
+        &self.config
+    }
+
+    #[inline]
+    pub fn config_mut(&mut self) -> &mut S::Config {
+        &mut self.config
+    }
+
+    #[inline]
+    pub fn handle(self: &Arc<Self>) -> ShaderHandle<S::V>
+    where
+        S: 'static,
+    {
+        self.clone()
     }
 
     #[inline]
@@ -72,7 +118,7 @@ impl<S: Shader> ApplyShaderInstance for ShaderInstance<S> {
 
     #[inline]
     fn apply_config(&self, render_pass: &mut RenderPass) {
-        let config = self.config.lock().unwrap();
+        let config = self.config.read().unwrap();
         self.shader.apply_config(render_pass, &config);
     }
 }
