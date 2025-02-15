@@ -22,6 +22,7 @@ pub mod index_format {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct RawMesh<V: Vertex, I: index_format::IndexFormat> {
     vertex_buffer: wgpu::Buffer,
     index_buffer: wgpu::Buffer,

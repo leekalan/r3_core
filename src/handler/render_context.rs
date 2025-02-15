@@ -159,13 +159,18 @@ impl<'r, ShaderV> RenderPass<'r, ShaderV> {
     }
 
     /// # Safety
-    /// This function is unsafe because it coerces the type
+    /// This function is unsafe because it coerces the vertex type
     #[inline]
     pub unsafe fn coerce<SV>(self) -> RenderPass<'r, SV> {
         RenderPass {
             render_pass: self.render_pass,
             __vertex: PhantomData,
         }
+    }
+
+    #[inline]
+    pub fn wipe(self) -> RenderPass<'r, ()> {
+        unsafe { self.coerce() }
     }
 
     #[inline]
@@ -176,6 +181,11 @@ impl<'r, ShaderV> RenderPass<'r, ShaderV> {
         handle.apply_config(inner);
 
         unsafe { self.coerce() }
+    }
+
+    #[inline]
+    pub fn draw_surface<V: Vertex>(self, mesh: impl Surface<V>) -> RenderPass<'r, V> {
+        mesh.draw(self.wipe())
     }
 }
 
@@ -189,7 +199,10 @@ impl<ShaderV: Vertex> RenderPass<'_, ShaderV> {
     }
 
     #[inline]
-    pub fn draw_mesh<I: index_format::IndexFormat>(&mut self, mesh: &RawMesh<ShaderV, I>) -> &mut Self {
+    pub fn draw_mesh<I: index_format::IndexFormat>(
+        &mut self,
+        mesh: &RawMesh<ShaderV, I>,
+    ) -> &mut Self {
         mesh.draw(unsafe { self.inner() });
         self
     }

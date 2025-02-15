@@ -13,6 +13,7 @@ pub mod app;
 pub mod layout;
 pub mod raw_mesh;
 pub mod render_context;
+pub mod surface;
 pub mod window;
 
 pub type OnStartCallback<S> = dyn Fn(&mut App<S>, &ActiveEventLoop);

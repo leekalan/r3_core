@@ -30,21 +30,24 @@ async fn main() {
 }
 
 fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
+    let render_context = app.render_context();
+
     let layout = Layout::new(
-        app.render_context().clone(),
+        render_context.clone(),
         LayoutConfig {
             format: app.window.format(),
             ..Default::default()
         },
     );
 
-    let mesh = RawMesh::new_uint16(app.render_context(), VERTICES, INDICES);
-
-    let shader = StaticShaderInstance::new(Arc::new(NewShader::new(layout)));
+    let mesh = Mesh::new(
+        RawMesh::new_uint16(render_context, VERTICES, INDICES),
+        Arc::new(StaticShaderInstance::new(Arc::new(NewShader::new(layout)))),
+    );
 
     let mut encoder = app.window.command_encoder();
 
-    encoder.render_pass().apply_shader(&shader).draw_mesh(&mesh);
+    encoder.render_pass().draw_surface(mesh);
 
     encoder.present();
 }
