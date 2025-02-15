@@ -34,6 +34,7 @@ impl<V: Vertex, I: index_format::IndexFormat> RawMesh<V, I> {
     /// # Safety
     /// This function is unsafe because the caller must ensure
     /// that the generic `V` matches with `vertex_buffer`
+    #[inline]
     pub const unsafe fn from_raw(
         vertex_buffer: wgpu::Buffer,
         index_buffer: wgpu::Buffer,

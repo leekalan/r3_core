@@ -33,17 +33,19 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
     let layout = Layout::new(
         app.render_context().clone(),
         LayoutConfig {
-            format: app.window.surface_config.format,
+            format: app.window.format(),
             ..Default::default()
         },
     );
 
-    let shader = StaticShaderInstance::new(Arc::new(NewShader::new(layout)), ()).handle();
-
     let mesh = RawMesh::new_uint16(app.render_context(), VERTICES, INDICES);
 
+    let shader = StaticShaderInstance::new(Arc::new(NewShader::new(layout)));
+
     let mut encoder = app.window.command_encoder();
+
     encoder.render_pass().apply_shader(&shader).draw_mesh(&mesh);
+
     encoder.present();
 }
 

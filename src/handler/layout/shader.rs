@@ -17,11 +17,22 @@ pub struct ShaderInstance<S: Shader> {
 
 impl<S: Shader> ShaderInstance<S> {
     #[inline]
-    pub fn new(shader: Arc<S>, config: S::Config) -> Arc<Self> {
-        Arc::new(Self {
+    pub fn new(shader: Arc<S>) -> Self
+    where
+        S::Config: Default,
+    {
+        Self {
+            shader,
+            config: RwLock::new(S::Config::default()),
+        }
+    }
+
+    #[inline]
+    pub fn new_with(shader: Arc<S>, config: S::Config) -> Self {
+        Self {
             shader,
             config: RwLock::new(config),
-        })
+        }
     }
 
     #[inline]
@@ -40,7 +51,7 @@ impl<S: Shader> ShaderInstance<S> {
     }
 
     #[inline]
-    pub fn handle(self: &Arc<Self>) -> ShaderHandle<S::V>
+    pub fn handle(self: &Arc<Self>) -> Arc<ShaderHandle<S::V>>
     where
         S: 'static,
     {
@@ -48,7 +59,7 @@ impl<S: Shader> ShaderInstance<S> {
     }
 
     #[inline]
-    pub fn into_handle(self: Arc<Self>) -> ShaderHandle<S::V>
+    pub fn into_handle(self: Arc<Self>) -> Arc<ShaderHandle<S::V>>
     where
         S: 'static,
     {
@@ -63,8 +74,19 @@ pub struct StaticShaderInstance<S: Shader> {
 
 impl<S: Shader> StaticShaderInstance<S> {
     #[inline]
-    pub fn new(shader: Arc<S>, config: S::Config) -> Arc<Self> {
-        Arc::new(Self { shader, config })
+    pub fn new(shader: Arc<S>) -> Self
+    where
+        S::Config: Default,
+    {
+        Self {
+            shader,
+            config: S::Config::default(),
+        }
+    }
+
+    #[inline]
+    pub fn new_with(shader: Arc<S>, config: S::Config) -> Self {
+        Self { shader, config }
     }
 
     #[inline]
@@ -83,7 +105,7 @@ impl<S: Shader> StaticShaderInstance<S> {
     }
 
     #[inline]
-    pub fn handle(self: &Arc<Self>) -> ShaderHandle<S::V>
+    pub fn handle(self: &Arc<Self>) -> Arc<ShaderHandle<S::V>>
     where
         S: 'static,
     {
@@ -91,7 +113,7 @@ impl<S: Shader> StaticShaderInstance<S> {
     }
 
     #[inline]
-    pub fn into_handle(self: Arc<Self>) -> ShaderHandle<S::V>
+    pub fn into_handle(self: Arc<Self>) -> Arc<ShaderHandle<S::V>>
     where
         S: 'static,
     {
@@ -135,4 +157,4 @@ impl<S: Shader> ApplyShaderInstance for StaticShaderInstance<S> {
     }
 }
 
-pub type ShaderHandle<V> = Arc<dyn ApplyShaderInstance<V = V>>;
+pub type ShaderHandle<V> = dyn ApplyShaderInstance<V = V>;

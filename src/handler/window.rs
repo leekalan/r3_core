@@ -78,6 +78,11 @@ impl Window {
     }
 
     #[inline]
+    pub fn format(&self) -> wgpu::TextureFormat {
+        self.surface_config.format
+    }
+
+    #[inline]
     pub fn output(&self) -> wgpu::SurfaceTexture {
         self.surface.get_current_texture().unwrap()
     }
