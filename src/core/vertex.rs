@@ -2,11 +2,11 @@ use crate::prelude::*;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct SimpleVertex {
+pub struct PosVertex {
     pub position: [f32; 3],
 }
 
-impl Vertex for SimpleVertex {
+impl Vertex for PosVertex {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         const ATTR: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![0 => Float32x3];
 
@@ -20,12 +20,12 @@ impl Vertex for SimpleVertex {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct ColoredVertex {
+pub struct RGBVertex {
     pub position: [f32; 3],
     pub color: [f32; 3],
 }
 
-impl Vertex for ColoredVertex {
+impl Vertex for RGBVertex {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         const ATTR: [wgpu::VertexAttribute; 2] =
             wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
@@ -38,12 +38,19 @@ impl Vertex for ColoredVertex {
     }
 }
 
-pub struct TextureVertex {
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct RBGAVertex {
+    pub position: [f32; 3],
+    pub color: [f32; 4],
+}
+
+pub struct UVVertex {
     pub position: [f32; 3],
     pub tex_coords: [f32; 2],
 }
 
-impl Vertex for TextureVertex {
+impl Vertex for UVVertex {
     fn desc() -> wgpu::VertexBufferLayout<'static> {
         const ATTR: [wgpu::VertexAttribute; 2] =
             wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2];

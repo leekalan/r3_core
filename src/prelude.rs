@@ -5,7 +5,7 @@ pub use crate::{
             shader::{
                 ApplyShaderInstance, Shader, ShaderHandle, ShaderInstance, StaticShaderInstance,
             },
-            Layout, LayoutConfig, Vertex,
+            Layout, LayoutConfig, ShaderConfig, Vertex,
         },
         render_context::{CommandEncoder, RenderContext, RenderContextConfig, RenderPass},
         window::{Window, WindowCommandEncoder, WindowConfig},
@@ -15,5 +15,8 @@ pub use crate::{
 };
 
 pub mod core {
-    pub use crate::core::vertex::{ColoredVertex, SimpleVertex, TextureVertex};
+    pub use crate::core::{
+        mesh::{index_format, RawMesh},
+        vertex::{PosVertex, RBGAVertex, RGBVertex, UVVertex},
+    };
 }

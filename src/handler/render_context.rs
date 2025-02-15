@@ -1,6 +1,6 @@
-use std::sync::Arc;
+use std::{marker::PhantomData, sync::Arc};
 
-use super::layout::{shader::ShaderHandle, Vertex};
+use crate::prelude::{core::*, *};
 
 #[derive(Default)]
 pub struct RenderContextConfig {
@@ -11,13 +11,37 @@ pub struct RenderContextConfig {
 }
 
 pub struct RenderContext {
-    pub instance: wgpu::Instance,
-    pub adapter: wgpu::Adapter,
-    pub device: wgpu::Device,
-    pub queue: wgpu::Queue,
+    instance: wgpu::Instance,
+    adapter: wgpu::Adapter,
+    device: wgpu::Device,
+    queue: wgpu::Queue,
 }
 
 impl RenderContext {
+    #[inline]
+    #[allow(clippy::missing_safety_doc)]
+    pub const unsafe fn instance(&self) -> &wgpu::Instance {
+        &self.instance
+    }
+
+    #[inline]
+    #[allow(clippy::missing_safety_doc)]
+    pub const unsafe fn adapter(&self) -> &wgpu::Adapter {
+        &self.adapter
+    }
+
+    #[inline]
+    #[allow(clippy::missing_safety_doc)]
+    pub const unsafe fn device(&self) -> &wgpu::Device {
+        &self.device
+    }
+
+    #[inline]
+    #[allow(clippy::missing_safety_doc)]
+    pub const unsafe fn queue(&self) -> &wgpu::Queue {
+        &self.queue
+    }
+
     pub async fn new(config: RenderContextConfig) -> Arc<Self> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: config.backends.unwrap_or(wgpu::Backends::PRIMARY),
@@ -56,6 +80,14 @@ impl RenderContext {
         })
     }
 
+    #[inline]
+    pub fn create_shader_module(
+        &self,
+        descriptor: wgpu::ShaderModuleDescriptor,
+    ) -> wgpu::ShaderModule {
+        self.device.create_shader_module(descriptor)
+    }
+
     pub fn command_encoder(&self) -> CommandEncoder {
         let encoder = self
             .device
@@ -81,7 +113,7 @@ impl CommandEncoder<'_> {
         view: &wgpu::TextureView,
         clear: Option<wgpu::Color>,
         depth_stencil_attachment: Option<wgpu::RenderPassDepthStencilAttachment>,
-    ) -> RenderPass {
+    ) -> RenderPass<()> {
         let render_pass = self.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -96,7 +128,10 @@ impl CommandEncoder<'_> {
             ..Default::default()
         });
 
-        RenderPass { render_pass }
+        RenderPass {
+            render_pass,
+            __vertex: PhantomData,
+        }
     }
 
     #[inline]
@@ -107,26 +142,52 @@ impl CommandEncoder<'_> {
     }
 }
 
-#[repr(transparent)]
-pub struct RenderPass<'r> {
-    pub render_pass: wgpu::RenderPass<'r>,
+pub struct RenderPass<'r, ShaderV> {
+    render_pass: wgpu::RenderPass<'r>,
+    __vertex: PhantomData<ShaderV>,
 }
 
-impl<'r> RenderPass<'r> {
+impl<'r, ShaderV> RenderPass<'r, ShaderV> {
+    /// # Safety
+    /// This function is unsafe because it allows the caller
+    /// to mutate the inner `wgpu::RenderPass`
     #[inline]
-    pub fn inner(&mut self) -> &mut wgpu::RenderPass<'r> {
+    pub unsafe fn inner(&mut self) -> &mut wgpu::RenderPass<'r> {
         &mut self.render_pass
     }
 
+    /// # Safety
+    /// This function is unsafe because it coerces the type
     #[inline]
-    pub fn set_shader<V: Vertex>(&mut self, shader: &ShaderHandle<V>) -> &mut Self {
-        shader.set_shader(self);
-        self
+    pub unsafe fn coerce<SV>(self) -> RenderPass<'r, SV> {
+        RenderPass {
+            render_pass: self.render_pass,
+            __vertex: PhantomData,
+        }
     }
 
     #[inline]
-    pub fn apply_shader_config<V: Vertex>(&mut self, shader: &ShaderHandle<V>) -> &mut Self {
-        shader.apply_config(self);
-        self
+    pub fn apply_shader<SV: Vertex>(mut self, handle: &ShaderHandle<SV>) -> RenderPass<'r, SV> {
+        let inner = unsafe { self.inner() };
+
+        handle.set_shader(inner);
+        handle.apply_config(inner);
+
+        unsafe { self.coerce() }
+    }
+}
+
+impl<ShaderV: Vertex> RenderPass<'_, ShaderV> {
+    /// # Safety
+    /// This function is unsafe because the caller must ensure
+    /// that the config is compatible with the applied shader
+    #[inline]
+    pub unsafe fn apply_config(&mut self, handle: &ShaderHandle<ShaderV>) {
+        handle.apply_config(self.inner());
+    }
+
+    #[inline]
+    pub fn draw_mesh<I: index_format::IndexFormat>(&mut self, mesh: &RawMesh<ShaderV, I>) {
+        mesh.draw(unsafe { self.inner() });
     }
 }

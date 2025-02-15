@@ -1,15 +1,13 @@
 use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use crate::prelude::RenderPass;
-
-use super::Vertex;
+use crate::prelude::*;
 
 pub trait Shader {
     type V: Vertex;
     type Config;
 
-    fn set_shader(&self, render_pass: &mut RenderPass);
-    fn apply_config(&self, render_pass: &mut RenderPass, config: &Self::Config);
+    fn set_shader(&self, render_pass: &mut wgpu::RenderPass);
+    fn apply_config(&self, render_pass: &mut wgpu::RenderPass, config: &Self::Config);
 }
 
 pub struct ShaderInstance<S: Shader> {
@@ -104,20 +102,20 @@ impl<S: Shader> StaticShaderInstance<S> {
 pub trait ApplyShaderInstance {
     type V: Vertex;
 
-    fn set_shader(&self, render_pass: &mut RenderPass);
-    fn apply_config(&self, render_pass: &mut RenderPass);
+    fn set_shader(&self, render_pass: &mut wgpu::RenderPass);
+    fn apply_config(&self, render_pass: &mut wgpu::RenderPass);
 }
 
 impl<S: Shader> ApplyShaderInstance for ShaderInstance<S> {
     type V = S::V;
 
     #[inline]
-    fn set_shader(&self, render_pass: &mut RenderPass) {
+    fn set_shader(&self, render_pass: &mut wgpu::RenderPass) {
         self.shader.set_shader(render_pass);
     }
 
     #[inline]
-    fn apply_config(&self, render_pass: &mut RenderPass) {
+    fn apply_config(&self, render_pass: &mut wgpu::RenderPass) {
         let config = self.config.read().unwrap();
         self.shader.apply_config(render_pass, &config);
     }
@@ -127,12 +125,12 @@ impl<S: Shader> ApplyShaderInstance for StaticShaderInstance<S> {
     type V = S::V;
 
     #[inline]
-    fn set_shader(&self, render_pass: &mut RenderPass) {
+    fn set_shader(&self, render_pass: &mut wgpu::RenderPass) {
         self.shader.set_shader(render_pass);
     }
 
     #[inline]
-    fn apply_config(&self, render_pass: &mut RenderPass) {
+    fn apply_config(&self, render_pass: &mut wgpu::RenderPass) {
         self.shader.apply_config(render_pass, &self.config);
     }
 }

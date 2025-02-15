@@ -42,15 +42,14 @@ impl Window {
             desired_maximum_frame_latency: config.desired_maximum_frame_latency.unwrap_or(2),
         };
 
-        let surface = render_context
-            .instance
+        let surface = unsafe { render_context.instance() }
             .create_surface(window.clone())
             .unwrap();
 
-        surface.configure(&render_context.device, &surface_config);
+        surface.configure(unsafe { render_context.device() }, &surface_config);
 
         let depth_texture = RawTexture::create_depth_texture(
-            &render_context.device,
+            unsafe { render_context.device() },
             &surface_config,
             "Depth Texture",
         );
@@ -66,18 +65,16 @@ impl Window {
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+        let device = unsafe { self.render_context.device() };
+
         if new_size.width > 0 && new_size.height > 0 {
             self.surface_config.width = new_size.width;
             self.surface_config.height = new_size.height;
-            self.surface
-                .configure(&self.render_context.device, &self.surface_config);
+            self.surface.configure(device, &self.surface_config);
         }
 
-        self.depth_texture = RawTexture::create_depth_texture(
-            &self.render_context.device,
-            &self.surface_config,
-            "Depth Texture",
-        );
+        self.depth_texture =
+            RawTexture::create_depth_texture(device, &self.surface_config, "Depth Texture");
     }
 
     #[inline]
@@ -134,7 +131,7 @@ impl WindowCommandEncoder<'_> {
     }
 
     #[inline]
-    pub fn render_pass(&mut self) -> RenderPass {
+    pub fn render_pass(&mut self) -> RenderPass<()> {
         self.command_encoder.render_pass(
             &self.view,
             self.clear,
