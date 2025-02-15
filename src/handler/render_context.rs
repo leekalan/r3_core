@@ -189,7 +189,8 @@ impl<ShaderV: Vertex> RenderPass<'_, ShaderV> {
     }
 
     #[inline]
-    pub fn draw_mesh<I: index_format::IndexFormat>(&mut self, mesh: &RawMesh<ShaderV, I>) {
+    pub fn draw_mesh<I: index_format::IndexFormat>(&mut self, mesh: &RawMesh<ShaderV, I>) -> &mut Self {
         mesh.draw(unsafe { self.inner() });
+        self
     }
 }
