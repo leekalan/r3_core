@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, sync::Arc};
 
-use crate::prelude::{core::*, *};
+use crate::prelude::*;
 
 #[derive(Default)]
 pub struct RenderContextConfig {
@@ -83,9 +83,11 @@ impl RenderContext {
     #[inline]
     pub fn create_shader_module(
         &self,
-        descriptor: wgpu::ShaderModuleDescriptor,
+        label: Option<&str>,
+        source: wgpu::ShaderSource,
     ) -> wgpu::ShaderModule {
-        self.device.create_shader_module(descriptor)
+        self.device
+            .create_shader_module(wgpu::ShaderModuleDescriptor { label, source })
     }
 
     pub fn command_encoder(&self) -> CommandEncoder {

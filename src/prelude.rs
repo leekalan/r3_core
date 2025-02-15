@@ -7,6 +7,7 @@ pub use crate::{
             },
             Layout, LayoutConfig, ShaderConfig, Vertex,
         },
+        raw_mesh::{index_format, RawMesh},
         render_context::{CommandEncoder, RenderContext, RenderContextConfig, RenderPass},
         window::{Window, WindowCommandEncoder, WindowConfig},
         Handler, HandlerConfig,
@@ -15,8 +16,5 @@ pub use crate::{
 };
 
 pub mod core {
-    pub use crate::core::{
-        mesh::{index_format, RawMesh},
-        vertex::{PosVertex, RBGAVertex, RGBVertex, UVVertex},
-    };
+    pub use crate::core::vertex::{PosVertex, RBGAVertex, RGBVertex, UVVertex};
 }

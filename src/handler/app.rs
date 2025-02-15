@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use crate::prelude::RenderContext;
-
-use super::window::{Window, WindowCommandEncoder};
+use crate::prelude::*;
 
 pub struct App<S> {
     pub window: Window,

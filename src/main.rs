@@ -55,15 +55,13 @@ struct NewShader {
 
 impl NewShader {
     fn new(layout: Layout<RGBVertex>) -> Self {
-        let shader = layout
-            .render_context()
-            .create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("Shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-            });
+        let module = layout.render_context().create_shader_module(
+            Some("Shader"),
+            wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+        );
 
         Self {
-            pipeline: layout.create_pipeline(&shader, ShaderConfig::default()),
+            pipeline: layout.create_pipeline(&module, ShaderConfig::default()),
         }
     }
 }
