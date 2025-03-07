@@ -18,7 +18,7 @@ pub use crate::{
 
 pub mod core {
     pub use crate::core::{
-        surface::Mesh,
+        surface::{ArcMesh, ExtendedSurface, Mesh, SurfaceExt},
         vertex::{PosVertex, RBGAVertex, RGBVertex, UVVertex},
     };
 }
