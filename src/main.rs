@@ -32,17 +32,15 @@ async fn main() {
 fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
     let render_context = app.render_context();
 
-    let layout = Layout::new(
-        render_context.clone(),
-        LayoutConfig {
-            format: app.window.format(),
-            ..Default::default()
-        },
-    );
+    let layout = NewLayout::new(render_context);
+
+    let shader = Arc::new(NewShader::new(render_context, layout));
+
+    let shader_instance = Arc::new(StaticShaderInstance::new(shader));
 
     let mesh = Mesh::new(
         RawMesh::new_uint16(render_context, VERTICES, INDICES),
-        Arc::new(StaticShaderInstance::new(Arc::new(NewShader::new(layout)))),
+        shader_instance,
     );
 
     let mut encoder = app.window.command_encoder();
@@ -52,32 +50,62 @@ fn on_start(app: &mut App<()>, _: &ActiveEventLoop) {
     encoder.present();
 }
 
+#[repr(transparent)]
+struct NewLayout {
+    layout: RawLayout<RGBVertex>,
+}
+
+impl NewLayout {
+    #[inline]
+    fn new(render_context: &RenderContext) -> Self {
+        Self {
+            layout: RawLayout::new(render_context, LayoutConfig::default()),
+        }
+    }
+}
+
+impl Layout for NewLayout {
+    type Vertex = RGBVertex;
+
+    #[inline]
+    fn raw_layout(&self) -> &RawLayout<Self::Vertex> {
+        &self.layout
+    }
+
+    #[inline]
+    fn set_instance(_: &mut wgpu::RenderPass, _: &LayoutInstance<Self>) {}
+}
+
+#[repr(transparent)]
 struct NewShader {
     pipeline: wgpu::RenderPipeline,
 }
 
 impl NewShader {
-    fn new(layout: Layout<RGBVertex>) -> Self {
-        let module = layout.render_context().create_shader_module(
+    #[inline]
+    fn new(render_context: &RenderContext, layout: NewLayout) -> Self {
+        let module = render_context.create_shader_module(
             Some("Shader"),
             wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         );
 
         Self {
-            pipeline: layout.create_pipeline(&module, ShaderConfig::default()),
+            pipeline: layout.raw_layout().create_pipeline(
+                render_context,
+                &module,
+                ShaderConfig::default(),
+            ),
         }
     }
 }
 
 impl Shader for NewShader {
-    type V = RGBVertex;
-    type Config = ();
+    type Layout = NewLayout;
 
-    fn set_shader(&self, render_pass: &mut wgpu::RenderPass) {
-        render_pass.set_pipeline(&self.pipeline);
+    #[inline]
+    fn pipeline(&self, _: &Self::Settings) -> &wgpu::RenderPipeline {
+        &self.pipeline
     }
-
-    fn apply_config(&self, _: &mut wgpu::RenderPass, _: &Self::Config) {}
 }
 
 const VERTICES: &[RGBVertex] = &[

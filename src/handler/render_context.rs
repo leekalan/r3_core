@@ -115,7 +115,7 @@ impl CommandEncoder<'_> {
         view: &wgpu::TextureView,
         clear: Option<wgpu::Color>,
         depth_stencil_attachment: Option<wgpu::RenderPassDepthStencilAttachment>,
-    ) -> RenderPass<()> {
+    ) -> RenderPass<Void> {
         let render_pass = self.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -144,12 +144,12 @@ impl CommandEncoder<'_> {
     }
 }
 
-pub struct RenderPass<'r, ShaderV> {
+pub struct RenderPass<'r, Layout> {
     render_pass: wgpu::RenderPass<'r>,
-    __vertex: PhantomData<ShaderV>,
+    __vertex: PhantomData<Layout>,
 }
 
-impl<'r, ShaderV> RenderPass<'r, ShaderV> {
+impl<'r, L> RenderPass<'r, L> {
     /// # Safety
     /// This function is unsafe because it allows the caller
     /// to mutate the inner `wgpu::RenderPass`
@@ -161,7 +161,7 @@ impl<'r, ShaderV> RenderPass<'r, ShaderV> {
     /// # Safety
     /// This function is unsafe because it coerces the vertex type
     #[inline]
-    pub unsafe fn coerce<SV>(self) -> RenderPass<'r, SV> {
+    pub unsafe fn coerce<NewLayout>(self) -> RenderPass<'r, NewLayout> {
         RenderPass {
             render_pass: self.render_pass,
             __vertex: PhantomData,
@@ -169,39 +169,41 @@ impl<'r, ShaderV> RenderPass<'r, ShaderV> {
     }
 
     #[inline]
-    pub fn wipe(self) -> RenderPass<'r, ()> {
+    pub fn wipe(self) -> RenderPass<'r, Void> {
         unsafe { self.coerce() }
     }
 
     #[inline]
-    pub fn apply_shader<SV: Vertex>(mut self, handle: &ShaderHandle<SV>) -> RenderPass<'r, SV> {
+    pub fn apply_shader<NewLayout: Layout>(
+        mut self,
+        handle: &ShaderHandle<NewLayout>,
+    ) -> RenderPass<'r, NewLayout> {
         let inner = unsafe { self.inner() };
 
-        handle.set_shader(inner);
-        handle.apply_config(inner);
+        handle.apply_shader(inner);
 
         unsafe { self.coerce() }
     }
 
     #[inline]
-    pub fn draw_surface<V: Vertex>(self, mesh: impl Surface<V>) -> RenderPass<'r, V> {
+    pub fn draw_surface<S: Surface>(self, mesh: S) -> RenderPass<'r, S::Layout> {
         mesh.draw(self.wipe())
     }
 }
 
-impl<ShaderV: Vertex> RenderPass<'_, ShaderV> {
+impl<L: Layout> RenderPass<'_, L> {
     /// # Safety
     /// This function is unsafe because the caller must ensure
     /// that the config is compatible with the applied shader
     #[inline]
-    pub unsafe fn apply_config(&mut self, handle: &ShaderHandle<ShaderV>) {
-        handle.apply_config(self.inner());
+    pub unsafe fn apply_settings(&mut self, handle: &ShaderHandle<L>) {
+        handle.apply_settings(self.inner());
     }
 
     #[inline]
     pub fn draw_mesh<I: index_format::IndexFormat>(
         &mut self,
-        mesh: &RawMesh<ShaderV, I>,
+        mesh: &RawMesh<L::Vertex, I>,
     ) -> &mut Self {
         mesh.draw(unsafe { self.inner() });
         self

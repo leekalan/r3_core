@@ -2,36 +2,45 @@ use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 use crate::prelude::*;
 
-pub trait Shader {
-    type V: Vertex;
-    type Config;
+pub trait ShaderSettings<L: Layout> {
+    fn layout_instance(&self) -> &LayoutInstance<L>;
+}
 
-    fn set_shader(&self, render_pass: &mut wgpu::RenderPass);
-    fn apply_config(&self, render_pass: &mut wgpu::RenderPass, config: &Self::Config);
+impl<L: Layout> ShaderSettings<L> for L::Instance {
+    fn layout_instance(&self) -> &Self {
+        self
+    }
+}
+
+pub trait Shader {
+    type Layout: Layout;
+    type Settings: ShaderSettings<Self::Layout> = LayoutInstance<Self::Layout>;
+
+    fn pipeline(&self, settings: &Self::Settings) -> &wgpu::RenderPipeline;
 }
 
 pub struct ShaderInstance<S: Shader> {
     shader: Arc<S>,
-    config: RwLock<S::Config>,
+    settings: RwLock<S::Settings>,
 }
 
 impl<S: Shader> ShaderInstance<S> {
     #[inline]
     pub fn new(shader: Arc<S>) -> Self
     where
-        S::Config: Default,
+        S::Settings: Default,
     {
         Self {
             shader,
-            config: RwLock::new(S::Config::default()),
+            settings: RwLock::new(S::Settings::default()),
         }
     }
 
     #[inline]
-    pub fn new_with(shader: Arc<S>, config: S::Config) -> Self {
+    pub fn new_with(shader: Arc<S>, settings: S::Settings) -> Self {
         Self {
             shader,
-            config: RwLock::new(config),
+            settings: RwLock::new(settings),
         }
     }
 
@@ -41,17 +50,17 @@ impl<S: Shader> ShaderInstance<S> {
     }
 
     #[inline]
-    pub fn config(&self) -> RwLockReadGuard<S::Config> {
-        self.config.read().unwrap()
+    pub fn settings(&self) -> RwLockReadGuard<S::Settings> {
+        self.settings.read().unwrap()
     }
 
     #[inline]
-    pub fn config_mut(&self) -> RwLockWriteGuard<S::Config> {
-        self.config.write().unwrap()
+    pub fn settings_mut(&self) -> RwLockWriteGuard<S::Settings> {
+        self.settings.write().unwrap()
     }
 
     #[inline]
-    pub fn handle(self: &Arc<Self>) -> Arc<ShaderHandle<S::V>>
+    pub fn handle(self: &Arc<Self>) -> Arc<ShaderHandle<S::Layout>>
     where
         S: 'static,
     {
@@ -59,7 +68,7 @@ impl<S: Shader> ShaderInstance<S> {
     }
 
     #[inline]
-    pub fn into_handle(self: Arc<Self>) -> Arc<ShaderHandle<S::V>>
+    pub fn into_handle(self: Arc<Self>) -> Arc<ShaderHandle<S::Layout>>
     where
         S: 'static,
     {
@@ -69,24 +78,24 @@ impl<S: Shader> ShaderInstance<S> {
 
 pub struct StaticShaderInstance<S: Shader> {
     shader: Arc<S>,
-    config: S::Config,
+    settings: S::Settings,
 }
 
 impl<S: Shader> StaticShaderInstance<S> {
     #[inline]
     pub fn new(shader: Arc<S>) -> Self
     where
-        S::Config: Default,
+        S::Settings: Default,
     {
         Self {
             shader,
-            config: S::Config::default(),
+            settings: S::Settings::default(),
         }
     }
 
     #[inline]
-    pub fn new_with(shader: Arc<S>, config: S::Config) -> Self {
-        Self { shader, config }
+    pub fn new_with(shader: Arc<S>, settings: S::Settings) -> Self {
+        Self { shader, settings }
     }
 
     #[inline]
@@ -95,17 +104,17 @@ impl<S: Shader> StaticShaderInstance<S> {
     }
 
     #[inline]
-    pub fn config(&self) -> &S::Config {
-        &self.config
+    pub fn settings(&self) -> &S::Settings {
+        &self.settings
     }
 
     #[inline]
-    pub fn config_mut(&mut self) -> &mut S::Config {
-        &mut self.config
+    pub fn settings_mut(&mut self) -> &mut S::Settings {
+        &mut self.settings
     }
 
     #[inline]
-    pub fn handle(self: &Arc<Self>) -> Arc<ShaderHandle<S::V>>
+    pub fn handle(self: &Arc<Self>) -> Arc<ShaderHandle<S::Layout>>
     where
         S: 'static,
     {
@@ -113,7 +122,7 @@ impl<S: Shader> StaticShaderInstance<S> {
     }
 
     #[inline]
-    pub fn into_handle(self: Arc<Self>) -> Arc<ShaderHandle<S::V>>
+    pub fn into_handle(self: Arc<Self>) -> Arc<ShaderHandle<S::Layout>>
     where
         S: 'static,
     {
@@ -122,39 +131,41 @@ impl<S: Shader> StaticShaderInstance<S> {
 }
 
 pub trait ApplyShaderInstance {
-    type V: Vertex;
+    type Layout: Layout;
 
-    fn set_shader(&self, render_pass: &mut wgpu::RenderPass);
-    fn apply_config(&self, render_pass: &mut wgpu::RenderPass);
+    fn apply_shader(&self, render_pass: &mut wgpu::RenderPass);
+
+    fn apply_settings(&self, render_pass: &mut wgpu::RenderPass);
 }
 
 impl<S: Shader> ApplyShaderInstance for ShaderInstance<S> {
-    type V = S::V;
+    type Layout = S::Layout;
 
-    #[inline]
-    fn set_shader(&self, render_pass: &mut wgpu::RenderPass) {
-        self.shader.set_shader(render_pass);
+    fn apply_shader(&self, render_pass: &mut wgpu::RenderPass) {
+        let settings = &*self.settings();
+        render_pass.set_pipeline(self.shader.pipeline(settings));
+        Self::Layout::set_instance(render_pass, settings.layout_instance());
     }
 
     #[inline]
-    fn apply_config(&self, render_pass: &mut wgpu::RenderPass) {
-        let config = self.config.read().unwrap();
-        self.shader.apply_config(render_pass, &config);
+    fn apply_settings(&self, render_pass: &mut wgpu::RenderPass) {
+        Self::Layout::set_instance(render_pass, (*self.settings()).layout_instance());
     }
 }
 
 impl<S: Shader> ApplyShaderInstance for StaticShaderInstance<S> {
-    type V = S::V;
+    type Layout = S::Layout;
 
     #[inline]
-    fn set_shader(&self, render_pass: &mut wgpu::RenderPass) {
-        self.shader.set_shader(render_pass);
+    fn apply_shader(&self, render_pass: &mut wgpu::RenderPass) {
+        render_pass.set_pipeline(self.shader.pipeline(&self.settings));
+        Self::Layout::set_instance(render_pass, self.settings.layout_instance());
     }
 
     #[inline]
-    fn apply_config(&self, render_pass: &mut wgpu::RenderPass) {
-        self.shader.apply_config(render_pass, &self.config);
+    fn apply_settings(&self, render_pass: &mut wgpu::RenderPass) {
+        Self::Layout::set_instance(render_pass, self.settings().layout_instance());
     }
 }
 
-pub type ShaderHandle<V> = dyn ApplyShaderInstance<V = V>;
+pub type ShaderHandle<L> = dyn ApplyShaderInstance<Layout = L>;

@@ -1,68 +1,80 @@
 use std::sync::Arc;
 
-use crate::prelude::{index_format::IndexFormat, *};
+use crate::prelude::*;
 
-pub struct Mesh<V: Vertex, I: IndexFormat> {
-    raw_mesh: RawMesh<V, I>,
-    shader: Arc<ShaderHandle<V>>,
+pub struct Mesh<L: Layout, I: index_format::IndexFormat> {
+    raw_mesh: RawMesh<L::Vertex, I>,
+    shader: Arc<ShaderHandle<L>>,
 }
 
-impl<V: Vertex, I: IndexFormat> Mesh<V, I> {
-    pub fn new(raw_mesh: RawMesh<V, I>, shader: Arc<ShaderHandle<V>>) -> Self {
+impl<L: Layout, I: index_format::IndexFormat> Mesh<L, I> {
+    pub fn new(raw_mesh: RawMesh<L::Vertex, I>, shader: Arc<ShaderHandle<L>>) -> Self {
         Self { raw_mesh, shader }
     }
 }
 
-impl<V: Vertex, I: IndexFormat> Surface<V> for Mesh<V, I> {
-    fn draw<'r>(&self, render_pass: RenderPass<'r, ()>) -> RenderPass<'r, V> {
+impl<L: Layout, I: index_format::IndexFormat> Surface for Mesh<L, I> {
+    type Layout = L;
+
+    fn draw<'r>(&self, render_pass: RenderPass<'r, Void>) -> RenderPass<'r, L> {
         let mut rp = render_pass.apply_shader(&*self.shader);
         rp.draw_mesh(&self.raw_mesh);
         rp
     }
 }
 
-pub struct ArcMesh<V: Vertex, I: IndexFormat> {
-    raw_mesh: Arc<RawMesh<V, I>>,
-    shader: Arc<ShaderHandle<V>>,
+pub struct ArcMesh<L: Layout, I: index_format::IndexFormat> {
+    raw_mesh: Arc<RawMesh<L::Vertex, I>>,
+    shader: Arc<ShaderHandle<L>>,
 }
 
-impl<V: Vertex, I: IndexFormat> ArcMesh<V, I> {
-    pub fn new(raw_mesh: Arc<RawMesh<V, I>>, shader: Arc<ShaderHandle<V>>) -> Self {
+impl<L: Layout, I: index_format::IndexFormat> ArcMesh<L, I> {
+    pub fn new(raw_mesh: Arc<RawMesh<L::Vertex, I>>, shader: Arc<ShaderHandle<L>>) -> Self {
         Self { raw_mesh, shader }
     }
 }
 
-impl<V: Vertex, I: IndexFormat> Surface<V> for ArcMesh<V, I> {
-    fn draw<'r>(&self, render_pass: RenderPass<'r, ()>) -> RenderPass<'r, V> {
+impl<L: Layout, I: index_format::IndexFormat> Surface for ArcMesh<L, I> {
+    type Layout = L;
+
+    fn draw<'r>(&self, render_pass: RenderPass<'r, Void>) -> RenderPass<'r, L> {
         let mut rp = render_pass.apply_shader(&*self.shader);
         rp.draw_mesh(&*self.raw_mesh);
         rp
     }
 }
 
-pub struct ExtendedSurface<S: Surface<V>, V: Vertex, I: IndexFormat> {
+pub struct ExtendedSurface<S: Surface, I: index_format::IndexFormat> {
     surface: S,
-    raw_mesh: RawMesh<V, I>,
+    raw_mesh: RawMesh<LayoutVertex<S::Layout>, I>,
 }
 
-impl<S: Surface<V>, V: Vertex, I: IndexFormat> ExtendedSurface<S, V, I> {
-    pub fn new(surface: S, raw_mesh: RawMesh<V, I>) -> Self {
+impl<S: Surface, I: index_format::IndexFormat> ExtendedSurface<S, I> {
+    pub fn new(surface: S, raw_mesh: RawMesh<LayoutVertex<S::Layout>, I>) -> Self {
         Self { surface, raw_mesh }
     }
 }
 
-pub trait SurfaceExt<V: Vertex>: Sized + Surface<V> {
-    fn extended<I: IndexFormat>(self, raw_mesh: RawMesh<V, I>) -> ExtendedSurface<Self, V, I>;
+pub trait SurfaceExt: Sized + Surface {
+    fn extended<I: index_format::IndexFormat>(
+        self,
+        raw_mesh: RawMesh<LayoutVertex<Self::Layout>, I>,
+    ) -> ExtendedSurface<Self, I>;
 }
 
-impl<S: Surface<V>, V: Vertex> SurfaceExt<V> for S {
-    fn extended<I: IndexFormat>(self, raw_mesh: RawMesh<V, I>) -> ExtendedSurface<S, V, I> {
+impl<S: Surface> SurfaceExt for S {
+    fn extended<I: index_format::IndexFormat>(
+        self,
+        raw_mesh: RawMesh<LayoutVertex<S::Layout>, I>,
+    ) -> ExtendedSurface<S, I> {
         ExtendedSurface::new(self, raw_mesh)
     }
 }
 
-impl<S: Surface<V>, V: Vertex, I: IndexFormat> Surface<V> for ExtendedSurface<S, V, I> {
-    fn draw<'r>(&self, render_pass: RenderPass<'r, ()>) -> RenderPass<'r, V> {
+impl<S: Surface, I: index_format::IndexFormat> Surface for ExtendedSurface<S, I> {
+    type Layout = S::Layout;
+
+    fn draw<'r>(&self, render_pass: RenderPass<'r, Void>) -> RenderPass<'r, S::Layout> {
         let mut surface = self.surface.draw(render_pass);
         surface.draw_mesh(&self.raw_mesh);
         surface

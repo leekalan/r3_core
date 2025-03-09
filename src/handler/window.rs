@@ -136,7 +136,7 @@ impl WindowCommandEncoder<'_> {
     }
 
     #[inline]
-    pub fn render_pass(&mut self) -> RenderPass<()> {
+    pub fn render_pass(&mut self) -> RenderPass<Void> {
         self.command_encoder.render_pass(
             &self.view,
             self.clear,

@@ -18,10 +18,12 @@ impl<S> App<S> {
         }
     }
 
+    #[inline]
     pub fn render_context(&self) -> &Arc<RenderContext> {
         &self.render_context
     }
 
+    #[inline]
     pub fn command_encoder(&self) -> WindowCommandEncoder {
         self.window.command_encoder()
     }
