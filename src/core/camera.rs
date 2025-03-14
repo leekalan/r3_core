@@ -1,7 +1,8 @@
-#![allow(private_bounds)]
-use crate::prelude::*;
-use cgmath::{Matrix4, One, Quaternion, Rad, Vector3, Zero};
 use std::f32::consts::PI;
+
+use crate::prelude::*;
+
+use cgmath::{Matrix4, Quaternion, Rad, Vector3};
 
 create_bind::bind!(CameraBind, CameraBindLayout {
     uniform: CameraUniform => 0 for VERTEX
@@ -15,7 +16,7 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
     0.0, 0.0, 0.0, 1.0,
 );
 
-#[derive(Clone, Debug)]
+#[derive(Debug, Clone)]
 pub struct Camera {
     pub transform: CameraTransform,
     pub projection: Projection,
@@ -66,6 +67,7 @@ impl Camera {
         &self.bind
     }
 
+    #[inline(always)]
     pub const fn layout(&self) -> &CameraBindLayout {
         self.bind.layout()
     }
@@ -75,7 +77,7 @@ impl Camera {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct CameraTransform {
     pub position: Vector3<f32>,
     pub rotation: Quaternion<f32>,
@@ -83,9 +85,13 @@ pub struct CameraTransform {
 }
 
 impl CameraTransform {
-    #[inline]
-    pub fn new() -> Self {
-        Self::default()
+    #[inline(always)]
+    pub const fn new() -> Self {
+        Self {
+            position: Vector3::new(0.0, 0.0, 0.0),
+            rotation: Quaternion::new(1.0, 0.0, 0.0, 0.0),
+            scale: 1.0,
+        }
     }
 
     #[inline]
@@ -97,13 +103,9 @@ impl CameraTransform {
 }
 
 impl Default for CameraTransform {
-    #[inline]
+    #[inline(always)]
     fn default() -> Self {
-        Self {
-            position: Vector3::zero(),
-            rotation: Quaternion::one(),
-            scale: 1.0,
-        }
+        Self::new()
     }
 }
 
@@ -142,10 +144,10 @@ impl Default for Projection {
     #[inline]
     fn default() -> Self {
         Self {
-            aspect: 1.0,
-            fovy: Rad(85f32 / 180f32 * PI),
+            aspect: 1.,
+            fovy: Rad(85. / 180. * PI),
             near: 0.1,
-            far: 100.0,
+            far: 100.,
         }
     }
 }

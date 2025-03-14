@@ -132,12 +132,12 @@ impl Layout for NewLayout {
     type Vertex = RGBVertex;
     type SharedData = CameraBind;
 
-    #[inline]
+    #[inline(always)]
     fn raw_layout(&self) -> &RawLayout<Self::Vertex> {
         &self.layout
     }
 
-    #[inline]
+    #[inline(always)]
     fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: &SharedLayoutData<Self>) {
         render_pass.set_bind_group(0, shared_data.bind_group(), &[]);
     }

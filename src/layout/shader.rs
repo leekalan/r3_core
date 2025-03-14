@@ -123,17 +123,17 @@ impl<S: Shader> StaticShaderInstance<S> {
         Self { shader, settings }
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn shader(&self) -> &S {
         &self.shader
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn settings(&self) -> &S::Settings {
         &self.settings
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn settings_mut(&mut self) -> &mut S::Settings {
         &mut self.settings
     }

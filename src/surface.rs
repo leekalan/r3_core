@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+pub mod raw_mesh;
+
 pub trait Surface {
     type Layout: Layout;
 

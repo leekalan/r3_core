@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use winit::{
     application::ApplicationHandler,
     event::*,
@@ -10,10 +8,6 @@ use winit::{
 use crate::prelude::*;
 
 pub mod app;
-pub mod layout;
-pub mod raw_mesh;
-pub mod render_context;
-pub mod surface;
 pub mod window;
 
 pub trait OnStartCallback<C, S> {

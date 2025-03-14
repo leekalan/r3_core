@@ -1,3 +1,5 @@
+use wgpu::SurfaceTexture;
+
 use crate::prelude::*;
 
 #[derive(Default)]
@@ -149,6 +151,11 @@ impl WindowCommandEncoder<'_> {
                 stencil_ops: self.stencil_ops,
             }),
         )
+    }
+
+    pub fn submit(self) -> SurfaceTexture {
+        self.command_encoder.submit();
+        self.output
     }
 
     #[inline]
