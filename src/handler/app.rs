@@ -1,29 +1,28 @@
-use std::sync::Arc;
-
 use crate::prelude::*;
 
+pub struct AppConfig<'r, 'w, C> {
+    pub render_context: &'r RenderContext,
+    pub window: &'w mut Window,
+    pub state_config: C,
+}
+
 pub struct App<S> {
-    pub window: Window,
-    pub render_context: Arc<RenderContext>,
+    pub render_context: Asc<RenderContext>,
     pub state: S,
+    pub window: Window,
 }
 
 impl<S> App<S> {
     #[inline]
-    pub fn new(window: Window, state: S) -> Self {
+    pub fn new(render_context: Asc<RenderContext>, window: Window, state: S) -> Self {
         Self {
-            render_context: window.render_context.clone(),
+            render_context,
             window,
             state,
         }
     }
 
-    #[inline]
-    pub fn render_context(&self) -> &Arc<RenderContext> {
-        &self.render_context
-    }
-
-    #[inline]
+    #[inline(always)]
     pub fn command_encoder(&self) -> WindowCommandEncoder {
         self.window.command_encoder()
     }

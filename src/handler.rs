@@ -16,7 +16,23 @@ pub mod render_context;
 pub mod surface;
 pub mod window;
 
-pub type OnStartCallback<S> = dyn Fn(&mut App<S>, &ActiveEventLoop);
+pub trait OnStartCallback<C, S> {
+    fn call(self, app: AppConfig<C>, event_loop: &ActiveEventLoop) -> S;
+}
+
+impl<F: FnOnce(AppConfig<C>, &ActiveEventLoop) -> S, C, S> OnStartCallback<C, S> for F {
+    #[inline]
+    fn call(self, app: AppConfig<C>, event_loop: &ActiveEventLoop) -> S {
+        self(app, event_loop)
+    }
+}
+
+impl<C, S: Default> OnStartCallback<C, S> for Void {
+    #[inline]
+    fn call(self, _: AppConfig<C>, _: &ActiveEventLoop) -> S {
+        S::default()
+    }
+}
 
 pub trait OnEventCallback<S> {
     fn call(
@@ -41,82 +57,103 @@ impl<F: Fn(&mut App<S>, &ActiveEventLoop, WindowId, WindowEvent), S> OnEventCall
     }
 }
 
-impl<S> OnEventCallback<S> for () {
+impl<S> OnEventCallback<S> for Void {
     #[inline]
     fn call(&mut self, _: &mut App<S>, _: &ActiveEventLoop, _: WindowId, _: WindowEvent) {}
 }
 
-pub struct HandlerConfig<S, OnEvent: OnEventCallback<S>> {
-    state: S,
+pub struct HandlerConfig<
+    C = Void,
+    S = Void,
+    OnStart: OnStartCallback<C, S> = Void,
+    OnEvent: OnEventCallback<S> = Void,
+> {
+    state_config: C,
     window_attributes: Option<WindowAttributes>,
     window_config: WindowConfig,
-    render_context: Arc<RenderContext>,
-    on_start: Option<Box<OnStartCallback<S>>>,
-    callback: OnEvent,
+    render_context: Asc<RenderContext>,
+    on_start: OnStart,
+    on_event: OnEvent,
+    _marker: PhantomData<*const S>,
 }
 
-impl<S, OnEvent: OnEventCallback<S>> HandlerConfig<S, OnEvent> {
+impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>>
+    HandlerConfig<C, S, OnStart, OnEvent>
+{
+    #[inline]
     pub fn new(
-        render_context: Arc<RenderContext>,
+        render_context: Asc<RenderContext>,
         window_config: WindowConfig,
-        callback: OnEvent,
+        on_start: OnStart,
+        on_event: OnEvent,
     ) -> Self
     where
-        S: Default,
+        C: Default,
     {
         Self {
-            state: S::default(),
+            state_config: C::default(),
             window_attributes: None,
             window_config,
             render_context,
-            callback,
-            on_start: None,
+            on_start,
+            on_event,
+            _marker: PhantomData,
         }
     }
 
-    pub fn with_state(
-        render_context: Arc<RenderContext>,
+    #[inline]
+    pub fn with_state_config(
+        render_context: Asc<RenderContext>,
         window_config: WindowConfig,
-        state: S,
-        callback: OnEvent,
+        state_config: C,
+        on_start: OnStart,
+        on_event: OnEvent,
     ) -> Self {
         Self {
-            state,
+            state_config,
             window_attributes: None,
             window_config,
             render_context,
-            callback,
-            on_start: None,
+            on_start,
+            on_event,
+            _marker: PhantomData,
         }
     }
 
-    pub fn on_start(mut self, on_start: Box<OnStartCallback<S>>) -> Self {
-        self.on_start = Some(on_start);
-        self
-    }
-
+    #[inline]
     pub fn window_attributes(mut self, window_attributes: WindowAttributes) -> Self {
         self.window_attributes = Some(window_attributes);
         self
     }
 }
 
-pub enum Handler<S, OnEvent: OnEventCallback<S>> {
-    Uninit(Option<HandlerConfig<S, OnEvent>>),
-    Active { app: App<S>, callback: OnEvent },
+pub enum Handler<
+    C = Void,
+    S = Void,
+    OnStart: OnStartCallback<C, S> = Void,
+    OnEvent: OnEventCallback<S> = Void,
+> {
+    Uninit(Option<HandlerConfig<C, S, OnStart, OnEvent>>),
+    Active { app: App<S>, on_event: OnEvent },
 }
 
-impl<S, OnEvent: OnEventCallback<S>> Handler<S, OnEvent> {
-    pub fn new(handler_config: HandlerConfig<S, OnEvent>) -> Self {
+impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>>
+    Handler<C, S, OnStart, OnEvent>
+{
+    #[inline]
+    pub fn new(handler_config: HandlerConfig<C, S, OnStart, OnEvent>) -> Self {
         Self::Uninit(Some(handler_config))
     }
 
+    #[inline]
     pub fn init(&mut self, event_loop: EventLoop<()>) {
         event_loop.run_app(self).unwrap();
     }
 }
 
-impl<S, OnEvent: OnEventCallback<S>> ApplicationHandler for Handler<S, OnEvent> {
+impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>> ApplicationHandler
+    for Handler<C, S, OnStart, OnEvent>
+{
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if let Handler::Uninit(config) = self {
             let config = config.take().unwrap();
@@ -127,17 +164,23 @@ impl<S, OnEvent: OnEventCallback<S>> ApplicationHandler for Handler<S, OnEvent> 
                     .unwrap(),
             );
 
-            let window = Window::new(winit_window, config.render_context, config.window_config);
+            let render_context = config.render_context;
+            let mut window =
+                Window::new(winit_window, render_context.clone(), config.window_config);
 
-            let mut app = App::new(window, config.state);
+            let uninit_app = AppConfig {
+                render_context: &render_context,
+                window: &mut window,
+                state_config: config.state_config,
+            };
 
-            if let Some(on_start) = config.on_start {
-                on_start(&mut app, event_loop);
-            }
+            let state = config.on_start.call(uninit_app, event_loop);
+
+            let app = App::new(render_context, window, state);
 
             *self = Handler::Active {
                 app,
-                callback: config.callback,
+                on_event: config.on_event,
             };
         }
     }
@@ -156,8 +199,8 @@ impl<S, OnEvent: OnEventCallback<S>> ApplicationHandler for Handler<S, OnEvent> 
             }
         }
 
-        if let Handler::Active { app, callback } = self {
-            callback.call(app, event_loop, window_id, event);
+        if let Handler::Active { app, on_event } = self {
+            on_event.call(app, event_loop, window_id, event);
         }
     }
 }

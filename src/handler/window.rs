@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::prelude::*;
 
 #[derive(Default)]
@@ -13,7 +11,7 @@ pub struct WindowConfig {
 pub struct Window {
     pub window: Arc<winit::window::Window>,
 
-    pub render_context: Arc<RenderContext>,
+    pub render_context: Asc<RenderContext>,
 
     pub surface_config: wgpu::SurfaceConfiguration,
     pub surface: wgpu::Surface<'static>,
@@ -26,7 +24,7 @@ pub struct Window {
 impl Window {
     pub fn new(
         window: Arc<winit::window::Window>,
-        render_context: Arc<RenderContext>,
+        render_context: Asc<RenderContext>,
         config: WindowConfig,
     ) -> Self {
         let size = window.inner_size();
@@ -62,6 +60,11 @@ impl Window {
             clear: config.clear,
             depth_texture,
         }
+    }
+
+    #[inline]
+    pub fn size(&self) -> (u32, u32) {
+        (self.surface_config.width, self.surface_config.height)
     }
 
     pub fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {

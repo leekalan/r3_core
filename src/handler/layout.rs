@@ -1,11 +1,11 @@
-use std::{marker::PhantomData, num::NonZeroU32};
+use std::num::NonZeroU32;
 
 use crate::prelude::*;
 
 pub mod shader;
 
-pub type LayoutInstance<L> = <L as Layout>::Instance;
 pub type LayoutVertex<L> = <L as Layout>::Vertex;
+pub type SharedLayoutData<L> = <L as Layout>::SharedData;
 
 pub trait Vertex {
     fn desc() -> wgpu::VertexBufferLayout<'static>;
@@ -13,11 +13,33 @@ pub trait Vertex {
 
 pub trait Layout {
     type Vertex: Vertex;
-    type Instance = Void;
+    type SharedData = Void;
 
     fn raw_layout(&self) -> &RawLayout<Self::Vertex>;
 
-    fn set_instance(render_pass: &mut wgpu::RenderPass, instance: &LayoutInstance<Self>);
+    #[allow(unused)]
+    fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: &SharedLayoutData<Self>) {}
+}
+
+pub trait CreatePipeline: Layout {
+    fn create_pipeline(
+        &self,
+        render_context: &RenderContext,
+        module: &wgpu::ShaderModule,
+        config: ShaderConfig,
+    ) -> wgpu::RenderPipeline;
+}
+
+impl<L: Layout> CreatePipeline for L {
+    fn create_pipeline(
+        &self,
+        render_context: &RenderContext,
+        module: &wgpu::ShaderModule,
+        shader_config: ShaderConfig,
+    ) -> wgpu::RenderPipeline {
+        self.raw_layout()
+            .create_pipeline(render_context, module, shader_config)
+    }
 }
 
 pub struct RawLayout<V: Vertex> {

@@ -1,5 +1,3 @@
-use std::{marker::PhantomData, sync::Arc};
-
 use crate::prelude::*;
 
 #[derive(Default)]
@@ -42,7 +40,7 @@ impl RenderContext {
         &self.queue
     }
 
-    pub async fn new(config: RenderContextConfig) -> Arc<Self> {
+    pub async fn new(config: RenderContextConfig) -> Asc<Self> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: config.backends.unwrap_or(wgpu::Backends::PRIMARY),
             ..Default::default()
@@ -72,7 +70,7 @@ impl RenderContext {
             .await
             .unwrap();
 
-        Arc::new(Self {
+        Asc::new(Self {
             instance,
             adapter,
             device,
@@ -174,30 +172,41 @@ impl<'r, L> RenderPass<'r, L> {
     }
 
     #[inline]
-    pub fn apply_shader<NewLayout: Layout>(
+    pub fn set_shared_data<NewLayout: Layout>(
         mut self,
-        handle: &ShaderHandle<NewLayout>,
+        shared_data: &SharedLayoutData<NewLayout>,
     ) -> RenderPass<'r, NewLayout> {
         let inner = unsafe { self.inner() };
 
-        handle.apply_shader(inner);
+        NewLayout::set_shared_data(inner, shared_data);
 
         unsafe { self.coerce() }
     }
 
     #[inline]
-    pub fn draw_surface<S: Surface>(self, mesh: S) -> RenderPass<'r, S::Layout> {
-        mesh.draw(self.wipe())
+    pub fn create_shared_data<NewLayout: Layout>(mut self) -> RenderPass<'r, NewLayout>
+    where
+        SharedLayoutData<NewLayout>: Default,
+    {
+        let inner = unsafe { self.inner() };
+
+        NewLayout::set_shared_data(inner, &Default::default());
+
+        unsafe { self.coerce() }
     }
 }
 
 impl<L: Layout> RenderPass<'_, L> {
-    /// # Safety
-    /// This function is unsafe because the caller must ensure
-    /// that the config is compatible with the applied shader
     #[inline]
-    pub unsafe fn apply_settings(&mut self, handle: &ShaderHandle<L>) {
-        handle.apply_settings(self.inner());
+    pub fn apply_shader(&mut self, handle: &ShaderHandle<L>) {
+        let inner = unsafe { self.inner() };
+
+        handle.apply_shader(inner);
+    }
+
+    #[inline]
+    pub fn draw_surface<S: Surface<Layout = L>>(&mut self, surface: &S) {
+        surface.draw(self);
     }
 
     #[inline]

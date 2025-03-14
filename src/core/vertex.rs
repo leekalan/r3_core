@@ -62,3 +62,8 @@ impl Vertex for UVVertex {
         }
     }
 }
+
+pub fn func(b: bool) {
+    let _a = !b;
+    println!("temp");
+}

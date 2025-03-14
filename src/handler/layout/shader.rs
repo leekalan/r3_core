@@ -1,32 +1,73 @@
-use std::sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard};
+use std::{
+    rc::Rc,
+    sync::{Arc, RwLock, RwLockReadGuard, RwLockWriteGuard},
+};
 
 use crate::prelude::*;
 
-pub trait ShaderSettings<L: Layout> {
-    fn layout_instance(&self) -> &LayoutInstance<L>;
+pub trait Shader {
+    type Layout: Layout;
+    type Settings = Void;
+
+    fn get_pipeline(&self, settings: &Self::Settings) -> &wgpu::RenderPipeline;
+
+    #[allow(unused)]
+    fn apply_settings(&self, render_pass: &mut wgpu::RenderPass, settings: &Self::Settings) {}
 }
 
-impl<L: Layout> ShaderSettings<L> for L::Instance {
-    fn layout_instance(&self) -> &Self {
-        self
+impl<S: Shader> Shader for Box<S> {
+    type Layout = S::Layout;
+    type Settings = S::Settings;
+
+    fn get_pipeline(&self, settings: &Self::Settings) -> &wgpu::RenderPipeline {
+        self.as_ref().get_pipeline(settings)
     }
 }
 
-pub trait Shader {
-    type Layout: Layout;
-    type Settings: ShaderSettings<Self::Layout> = LayoutInstance<Self::Layout>;
+impl<S: Shader> Shader for Rc<S> {
+    type Layout = S::Layout;
+    type Settings = S::Settings;
 
-    fn pipeline(&self, settings: &Self::Settings) -> &wgpu::RenderPipeline;
+    fn get_pipeline(&self, settings: &Self::Settings) -> &wgpu::RenderPipeline {
+        self.as_ref().get_pipeline(settings)
+    }
+}
+
+impl<S: Shader> Shader for Arc<S> {
+    type Layout = S::Layout;
+    type Settings = S::Settings;
+
+    fn get_pipeline(&self, settings: &Self::Settings) -> &wgpu::RenderPipeline {
+        self.as_ref().get_pipeline(settings)
+    }
+}
+
+impl<S: Shader> Shader for Sc<S> {
+    type Layout = S::Layout;
+    type Settings = S::Settings;
+
+    fn get_pipeline(&self, settings: &Self::Settings) -> &wgpu::RenderPipeline {
+        self.as_ref().get_pipeline(settings)
+    }
+}
+
+impl<S: Shader> Shader for Asc<S> {
+    type Layout = S::Layout;
+    type Settings = S::Settings;
+
+    fn get_pipeline(&self, settings: &Self::Settings) -> &wgpu::RenderPipeline {
+        self.as_ref().get_pipeline(settings)
+    }
 }
 
 pub struct ShaderInstance<S: Shader> {
-    shader: Arc<S>,
+    shader: S,
     settings: RwLock<S::Settings>,
 }
 
 impl<S: Shader> ShaderInstance<S> {
     #[inline]
-    pub fn new(shader: Arc<S>) -> Self
+    pub fn new(shader: S) -> Self
     where
         S::Settings: Default,
     {
@@ -37,7 +78,7 @@ impl<S: Shader> ShaderInstance<S> {
     }
 
     #[inline]
-    pub fn new_with(shader: Arc<S>, settings: S::Settings) -> Self {
+    pub fn new_with(shader: S, settings: S::Settings) -> Self {
         Self {
             shader,
             settings: RwLock::new(settings),
@@ -45,7 +86,7 @@ impl<S: Shader> ShaderInstance<S> {
     }
 
     #[inline]
-    pub fn shader(&self) -> &Arc<S> {
+    pub fn shader(&self) -> &S {
         &self.shader
     }
 
@@ -58,32 +99,16 @@ impl<S: Shader> ShaderInstance<S> {
     pub fn settings_mut(&self) -> RwLockWriteGuard<S::Settings> {
         self.settings.write().unwrap()
     }
-
-    #[inline]
-    pub fn handle(self: &Arc<Self>) -> Arc<ShaderHandle<S::Layout>>
-    where
-        S: 'static,
-    {
-        self.clone()
-    }
-
-    #[inline]
-    pub fn into_handle(self: Arc<Self>) -> Arc<ShaderHandle<S::Layout>>
-    where
-        S: 'static,
-    {
-        self
-    }
 }
 
 pub struct StaticShaderInstance<S: Shader> {
-    shader: Arc<S>,
+    shader: S,
     settings: S::Settings,
 }
 
 impl<S: Shader> StaticShaderInstance<S> {
     #[inline]
-    pub fn new(shader: Arc<S>) -> Self
+    pub fn new(shader: S) -> Self
     where
         S::Settings: Default,
     {
@@ -94,12 +119,12 @@ impl<S: Shader> StaticShaderInstance<S> {
     }
 
     #[inline]
-    pub fn new_with(shader: Arc<S>, settings: S::Settings) -> Self {
+    pub fn new_with(shader: S, settings: S::Settings) -> Self {
         Self { shader, settings }
     }
 
     #[inline]
-    pub fn shader(&self) -> &Arc<S> {
+    pub fn shader(&self) -> &S {
         &self.shader
     }
 
@@ -112,21 +137,24 @@ impl<S: Shader> StaticShaderInstance<S> {
     pub fn settings_mut(&mut self) -> &mut S::Settings {
         &mut self.settings
     }
+}
 
+pub struct DefaultShaderInstance<S: Shader> {
+    shader: S,
+}
+
+impl<S: Shader> DefaultShaderInstance<S>
+where
+    S::Settings: Default,
+{
     #[inline]
-    pub fn handle(self: &Arc<Self>) -> Arc<ShaderHandle<S::Layout>>
-    where
-        S: 'static,
-    {
-        self.clone()
+    pub fn new(shader: S) -> Self {
+        Self { shader }
     }
 
     #[inline]
-    pub fn into_handle(self: Arc<Self>) -> Arc<ShaderHandle<S::Layout>>
-    where
-        S: 'static,
-    {
-        self
+    pub fn shader(&self) -> &S {
+        &self.shader
     }
 }
 
@@ -135,21 +163,22 @@ pub trait ApplyShaderInstance {
 
     fn apply_shader(&self, render_pass: &mut wgpu::RenderPass);
 
-    fn apply_settings(&self, render_pass: &mut wgpu::RenderPass);
+    fn change_settings(&self, render_pass: &mut wgpu::RenderPass);
 }
 
 impl<S: Shader> ApplyShaderInstance for ShaderInstance<S> {
     type Layout = S::Layout;
 
+    #[inline]
     fn apply_shader(&self, render_pass: &mut wgpu::RenderPass) {
         let settings = &*self.settings();
-        render_pass.set_pipeline(self.shader.pipeline(settings));
-        Self::Layout::set_instance(render_pass, settings.layout_instance());
+        render_pass.set_pipeline(self.shader.get_pipeline(settings));
+        self.shader.apply_settings(render_pass, settings);
     }
 
     #[inline]
-    fn apply_settings(&self, render_pass: &mut wgpu::RenderPass) {
-        Self::Layout::set_instance(render_pass, (*self.settings()).layout_instance());
+    fn change_settings(&self, render_pass: &mut wgpu::RenderPass) {
+        self.shader.apply_settings(render_pass, &*self.settings());
     }
 }
 
@@ -158,14 +187,104 @@ impl<S: Shader> ApplyShaderInstance for StaticShaderInstance<S> {
 
     #[inline]
     fn apply_shader(&self, render_pass: &mut wgpu::RenderPass) {
-        render_pass.set_pipeline(self.shader.pipeline(&self.settings));
-        Self::Layout::set_instance(render_pass, self.settings.layout_instance());
+        render_pass.set_pipeline(self.shader.get_pipeline(&self.settings));
+        self.shader.apply_settings(render_pass, &self.settings);
     }
 
     #[inline]
-    fn apply_settings(&self, render_pass: &mut wgpu::RenderPass) {
-        Self::Layout::set_instance(render_pass, self.settings().layout_instance());
+    fn change_settings(&self, render_pass: &mut wgpu::RenderPass) {
+        self.shader.apply_settings(render_pass, &self.settings);
     }
 }
 
-pub type ShaderHandle<L> = dyn ApplyShaderInstance<Layout = L>;
+impl<S: Shader> ApplyShaderInstance for DefaultShaderInstance<S>
+where
+    S::Settings: Default,
+{
+    type Layout = S::Layout;
+
+    #[inline]
+    fn apply_shader(&self, render_pass: &mut wgpu::RenderPass) {
+        let settings = &S::Settings::default();
+        render_pass.set_pipeline(self.shader.get_pipeline(settings));
+        self.shader.apply_settings(render_pass, settings);
+    }
+
+    #[inline]
+    fn change_settings(&self, render_pass: &mut wgpu::RenderPass) {
+        self.shader
+            .apply_settings(render_pass, &S::Settings::default());
+    }
+}
+
+impl<S: ApplyShaderInstance> ApplyShaderInstance for Box<S> {
+    type Layout = S::Layout;
+
+    #[inline]
+    fn apply_shader(&self, render_pass: &mut wgpu::RenderPass) {
+        self.as_ref().apply_shader(render_pass);
+    }
+
+    #[inline]
+    fn change_settings(&self, render_pass: &mut wgpu::RenderPass) {
+        self.as_ref().change_settings(render_pass);
+    }
+}
+
+impl<S: ApplyShaderInstance> ApplyShaderInstance for Rc<S> {
+    type Layout = S::Layout;
+
+    #[inline]
+    fn apply_shader(&self, render_pass: &mut wgpu::RenderPass) {
+        self.as_ref().apply_shader(render_pass);
+    }
+
+    #[inline]
+    fn change_settings(&self, render_pass: &mut wgpu::RenderPass) {
+        self.as_ref().change_settings(render_pass);
+    }
+}
+
+impl<S: ApplyShaderInstance> ApplyShaderInstance for Arc<S> {
+    type Layout = S::Layout;
+
+    #[inline]
+    fn apply_shader(&self, render_pass: &mut wgpu::RenderPass) {
+        self.as_ref().apply_shader(render_pass);
+    }
+
+    #[inline]
+    fn change_settings(&self, render_pass: &mut wgpu::RenderPass) {
+        self.as_ref().change_settings(render_pass);
+    }
+}
+
+impl<S: ApplyShaderInstance> ApplyShaderInstance for Sc<S> {
+    type Layout = S::Layout;
+
+    #[inline]
+    fn apply_shader(&self, render_pass: &mut wgpu::RenderPass) {
+        self.as_ref().apply_shader(render_pass);
+    }
+
+    #[inline]
+    fn change_settings(&self, render_pass: &mut wgpu::RenderPass) {
+        self.as_ref().change_settings(render_pass);
+    }
+}
+
+impl<S: ApplyShaderInstance> ApplyShaderInstance for Asc<S> {
+    type Layout = S::Layout;
+
+    #[inline]
+    fn apply_shader(&self, render_pass: &mut wgpu::RenderPass) {
+        self.as_ref().apply_shader(render_pass);
+    }
+
+    #[inline]
+    fn change_settings(&self, render_pass: &mut wgpu::RenderPass) {
+        self.as_ref().change_settings(render_pass);
+    }
+}
+
+pub type ShaderHandle<'s, L> = dyn ApplyShaderInstance<Layout = L> + 's;
