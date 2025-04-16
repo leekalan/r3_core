@@ -1,14 +1,17 @@
-use std::num::NonZeroU32;
+use std::{fmt::Debug, num::NonZeroU32};
 
 use crate::prelude::*;
 
+pub mod compute_shader;
 pub mod shader;
 
 pub type LayoutVertex<L> = <L as Layout>::Vertex;
 pub type SharedLayoutData<L> = <L as Layout>::SharedData;
 
-pub trait Vertex {
-    fn desc() -> wgpu::VertexBufferLayout<'static>;
+pub type SharedComputeLayoutData<L> = <L as ComputeLayout>::SharedData;
+
+pub trait Vertex: Debug + Clone {
+    fn desc() -> &'static [wgpu::VertexBufferLayout<'static>];
 }
 
 pub trait Layout {
@@ -29,7 +32,6 @@ pub trait CreatePipeline: Layout {
         config: ShaderConfig,
     ) -> wgpu::RenderPipeline;
 }
-
 impl<L: Layout> CreatePipeline for L {
     fn create_pipeline(
         &self,
@@ -42,12 +44,14 @@ impl<L: Layout> CreatePipeline for L {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct RawLayout<V: Vertex> {
     pipeline_layout: wgpu::PipelineLayout,
     format: wgpu::TextureFormat,
     __vertex: PhantomData<V>,
 }
 
+#[derive(Debug, Clone)]
 pub struct LayoutConfig<'a> {
     pub bind_group_layouts: &'a [&'a wgpu::BindGroupLayout],
     pub format: wgpu::TextureFormat,
@@ -107,7 +111,7 @@ impl<V: Vertex> RawLayout<V> {
             vertex: wgpu::VertexState {
                 module,
                 entry_point: Some(shader_config.vertex_entry.unwrap_or("vs")),
-                buffers: &[V::desc()],
+                buffers: V::desc(),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -159,4 +163,118 @@ pub struct ShaderConfig<'a> {
     pub cache: Option<&'a wgpu::PipelineCache>,
     pub vertex_entry: Option<&'a str>,
     pub fragment_entry: Option<&'a str>,
+}
+
+pub trait ComputeLayout {
+    type SharedData = Void;
+
+    fn raw_layout(&self) -> &RawComputeLayout;
+
+    #[allow(unused)]
+    fn set_shared_data(
+        compute_pass: &mut wgpu::ComputePass,
+        shared_data: &SharedComputeLayoutData<Self>,
+    ) {
+    }
+}
+
+pub trait CreateComputePipeline: ComputeLayout {
+    fn create_compute_pipeline(
+        &self,
+        render_context: &RenderContext,
+        module: &wgpu::ShaderModule,
+        compute_shader_config: ComputeShaderConfig,
+    ) -> wgpu::ComputePipeline;
+}
+impl<L: ComputeLayout> CreateComputePipeline for L {
+    fn create_compute_pipeline(
+        &self,
+        render_context: &RenderContext,
+        module: &wgpu::ShaderModule,
+        compute_shader_config: ComputeShaderConfig,
+    ) -> wgpu::ComputePipeline {
+        self.raw_layout()
+            .create_compute_pipeline(render_context, module, compute_shader_config)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RawComputeLayout {
+    pipeline_layout: wgpu::PipelineLayout,
+    format: wgpu::TextureFormat,
+}
+
+#[derive(Debug, Clone)]
+pub struct ComputeLayoutConfig<'a> {
+    pub bind_group_layouts: &'a [&'a wgpu::BindGroupLayout],
+    pub format: wgpu::TextureFormat,
+}
+
+impl Default for ComputeLayoutConfig<'_> {
+    fn default() -> Self {
+        Self {
+            bind_group_layouts: &[],
+            format: wgpu::TextureFormat::Bgra8UnormSrgb,
+        }
+    }
+}
+
+impl RawComputeLayout {
+    fn layout(&self) -> &wgpu::PipelineLayout {
+        &self.pipeline_layout
+    }
+
+    pub fn format(&self) -> wgpu::TextureFormat {
+        self.format
+    }
+
+    pub fn from_raw(pipeline_layout: wgpu::PipelineLayout, format: wgpu::TextureFormat) -> Self {
+        Self {
+            pipeline_layout,
+            format,
+        }
+    }
+
+    pub fn new(render_context: &RenderContext, config: LayoutConfig) -> Self {
+        let pipeline_layout = unsafe { render_context.device() }.create_pipeline_layout(
+            &wgpu::PipelineLayoutDescriptor {
+                label: None,
+                bind_group_layouts: config.bind_group_layouts,
+                push_constant_ranges: &[],
+            },
+        );
+
+        Self {
+            pipeline_layout,
+            format: config.format,
+        }
+    }
+
+    pub fn create_compute_pipeline(
+        &self,
+        render_context: &RenderContext,
+        module: &wgpu::ShaderModule,
+        compute_shader_config: ComputeShaderConfig,
+    ) -> wgpu::ComputePipeline {
+        unsafe { render_context.device() }.create_compute_pipeline(
+            &wgpu::ComputePipelineDescriptor {
+                label: compute_shader_config.label,
+                layout: Some(self.layout()),
+                module,
+                entry_point: Some(compute_shader_config.entry.unwrap_or("cs")),
+                compilation_options: compute_shader_config
+                    .compilation_options
+                    .unwrap_or_default(),
+                cache: compute_shader_config.cache,
+            },
+        )
+    }
+}
+
+#[derive(Default, Debug, Clone)]
+pub struct ComputeShaderConfig<'a> {
+    pub label: Option<&'a str>,
+    pub entry: Option<&'a str>,
+    pub compilation_options: Option<wgpu::PipelineCompilationOptions<'a>>,
+    pub cache: Option<&'a wgpu::PipelineCache>,
 }

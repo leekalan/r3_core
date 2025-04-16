@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+#[derive(Debug, Clone)]
 pub struct Mesh<S: ApplyShaderInstance, I: index_format::IndexFormat = index_format::Uint16> {
     raw_mesh: RawMesh<LayoutVertex<S::Layout>, I>,
     shader: S,

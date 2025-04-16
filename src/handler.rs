@@ -2,7 +2,7 @@ use winit::{
     application::ApplicationHandler,
     event::*,
     event_loop::{ActiveEventLoop, EventLoop},
-    window::{WindowAttributes, WindowId},
+    window::WindowId,
 };
 
 use crate::prelude::*;
@@ -15,14 +15,14 @@ pub trait OnStartCallback<C, S> {
 }
 
 impl<F: FnOnce(AppConfig<C>, &ActiveEventLoop) -> S, C, S> OnStartCallback<C, S> for F {
-    #[inline]
+    #[inline(always)]
     fn call(self, app: AppConfig<C>, event_loop: &ActiveEventLoop) -> S {
         self(app, event_loop)
     }
 }
 
 impl<C, S: Default> OnStartCallback<C, S> for Void {
-    #[inline]
+    #[inline(always)]
     fn call(self, _: AppConfig<C>, _: &ActiveEventLoop) -> S {
         S::default()
     }
@@ -39,7 +39,7 @@ pub trait OnEventCallback<S> {
 }
 
 impl<F: Fn(&mut App<S>, &ActiveEventLoop, WindowId, WindowEvent), S> OnEventCallback<S> for F {
-    #[inline]
+    #[inline(always)]
     fn call(
         &mut self,
         app: &mut App<S>,
@@ -52,29 +52,34 @@ impl<F: Fn(&mut App<S>, &ActiveEventLoop, WindowId, WindowEvent), S> OnEventCall
 }
 
 impl<S> OnEventCallback<S> for Void {
-    #[inline]
+    #[inline(always)]
     fn call(&mut self, _: &mut App<S>, _: &ActiveEventLoop, _: WindowId, _: WindowEvent) {}
 }
 
-pub struct HandlerConfig<
+#[derive(Debug)]
+pub enum Handler<
     C = Void,
     S = Void,
     OnStart: OnStartCallback<C, S> = Void,
     OnEvent: OnEventCallback<S> = Void,
 > {
-    state_config: C,
-    window_attributes: Option<WindowAttributes>,
-    window_config: WindowConfig,
-    render_context: Asc<RenderContext>,
-    on_start: OnStart,
-    on_event: OnEvent,
-    _marker: PhantomData<*const S>,
+    Uninit {
+        render_context: Asc<RenderContext>,
+        window_config: WindowConfig,
+        state: Option<C>,
+        on_start: Option<OnStart>,
+        on_event: Option<OnEvent>,
+    },
+    Active {
+        app: App<S>,
+        on_event: OnEvent,
+    },
 }
 
 impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>>
-    HandlerConfig<C, S, OnStart, OnEvent>
+    Handler<C, S, OnStart, OnEvent>
 {
-    #[inline]
+    #[inline(always)]
     pub fn new(
         render_context: Asc<RenderContext>,
         window_config: WindowConfig,
@@ -84,62 +89,33 @@ impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>>
     where
         C: Default,
     {
-        Self {
-            state_config: C::default(),
-            window_attributes: None,
-            window_config,
+        Self::Uninit {
             render_context,
-            on_start,
-            on_event,
-            _marker: PhantomData,
+            window_config,
+            state: Some(default()),
+            on_start: Some(on_start),
+            on_event: Some(on_event),
         }
     }
 
-    #[inline]
-    pub fn with_state_config(
+    #[inline(always)]
+    pub fn new_with(
         render_context: Asc<RenderContext>,
         window_config: WindowConfig,
-        state_config: C,
+        state: C,
         on_start: OnStart,
         on_event: OnEvent,
     ) -> Self {
-        Self {
-            state_config,
-            window_attributes: None,
-            window_config,
+        Self::Uninit {
             render_context,
-            on_start,
-            on_event,
-            _marker: PhantomData,
+            window_config,
+            state: Some(state),
+            on_start: Some(on_start),
+            on_event: Some(on_event),
         }
     }
 
-    #[inline]
-    pub fn window_attributes(mut self, window_attributes: WindowAttributes) -> Self {
-        self.window_attributes = Some(window_attributes);
-        self
-    }
-}
-
-pub enum Handler<
-    C = Void,
-    S = Void,
-    OnStart: OnStartCallback<C, S> = Void,
-    OnEvent: OnEventCallback<S> = Void,
-> {
-    Uninit(Option<HandlerConfig<C, S, OnStart, OnEvent>>),
-    Active { app: App<S>, on_event: OnEvent },
-}
-
-impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>>
-    Handler<C, S, OnStart, OnEvent>
-{
-    #[inline]
-    pub fn new(handler_config: HandlerConfig<C, S, OnStart, OnEvent>) -> Self {
-        Self::Uninit(Some(handler_config))
-    }
-
-    #[inline]
+    #[inline(always)]
     pub fn init(&mut self, event_loop: EventLoop<()>) {
         event_loop.run_app(self).unwrap();
     }
@@ -149,32 +125,35 @@ impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>> Applicat
     for Handler<C, S, OnStart, OnEvent>
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
-        if let Handler::Uninit(config) = self {
-            let config = config.take().unwrap();
-
+        if let Handler::Uninit {
+            render_context,
+            window_config,
+            state,
+            on_start,
+            on_event,
+        } = self
+        {
             let winit_window = Arc::new(
                 event_loop
-                    .create_window(config.window_attributes.unwrap_or_default())
+                    .create_window(window_config.window_attributes.take().unwrap_or_default())
                     .unwrap(),
             );
 
-            let render_context = config.render_context;
-            let mut window =
-                Window::new(winit_window, render_context.clone(), config.window_config);
+            let mut window = Window::new(winit_window, render_context.clone(), window_config);
 
             let uninit_app = AppConfig {
-                render_context: &render_context,
+                render_context,
                 window: &mut window,
-                state_config: config.state_config,
+                state: state.take().unwrap(),
             };
 
-            let state = config.on_start.call(uninit_app, event_loop);
+            let state = on_start.take().unwrap().call(uninit_app, event_loop);
 
-            let app = App::new(render_context, window, state);
+            let app = App::new(render_context.clone(), window, state);
 
             *self = Handler::Active {
                 app,
-                on_event: config.on_event,
+                on_event: on_event.take().unwrap(),
             };
         }
     }

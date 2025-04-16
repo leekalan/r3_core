@@ -5,16 +5,20 @@ use wgpu::util::DeviceExt;
 use crate::prelude::*;
 
 pub mod index_format {
-    pub trait IndexFormat {
+    use std::fmt::Debug;
+
+    pub trait IndexFormat: Debug {
         const FORMAT: wgpu::IndexFormat;
     }
 
+    #[derive(Default, Debug, Clone, Copy)]
     pub struct Uint16;
 
     impl IndexFormat for Uint16 {
         const FORMAT: wgpu::IndexFormat = wgpu::IndexFormat::Uint16;
     }
 
+    #[derive(Default, Debug, Clone, Copy)]
     pub struct Uint32;
 
     impl IndexFormat for Uint32 {

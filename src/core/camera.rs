@@ -1,11 +1,13 @@
 use std::f32::consts::PI;
 
-use crate::prelude::*;
+use crate::prelude::{core::*, *};
 
-use cgmath::{Matrix4, Quaternion, Rad, Vector3};
+use cgmath::{Matrix4, Rad};
 
 create_bind::bind!(CameraBind, CameraBindLayout {
-    uniform: CameraUniform => 0 for VERTEX
+    Buffers => {
+        uniform: CameraUniform => 0 for VERTEX,
+    },
 });
 
 #[rustfmt::skip]
@@ -18,7 +20,6 @@ pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
 
 #[derive(Debug, Clone)]
 pub struct Camera {
-    pub transform: CameraTransform,
     pub projection: Projection,
     projection_matrix: ProjectionMatrix,
     uniform: CameraUniform,
@@ -27,13 +28,12 @@ pub struct Camera {
 
 impl Camera {
     #[inline]
-    pub fn new(bind: CameraBind, projection: Projection, transform: CameraTransform) -> Self {
+    pub fn new(bind: CameraBind, projection: Projection, transform: Transform) -> Self {
         let projection_matrix = projection.proj_matrix();
 
         Self {
             uniform: projection_matrix.apply_transform(&transform),
             projection_matrix,
-            transform,
             projection,
             bind,
         }
@@ -42,13 +42,12 @@ impl Camera {
     #[inline]
     pub fn update_projection(&mut self) -> &mut Self {
         self.projection_matrix = self.projection.proj_matrix();
-        self.uniform = self.projection_matrix.apply_transform(&self.transform);
         self
     }
 
     #[inline]
-    pub fn update_transform(&mut self) -> &mut Self {
-        self.uniform = self.projection_matrix.apply_transform(&self.transform);
+    pub fn apply_transform(&mut self, transform: Transform) -> &mut Self {
+        self.uniform = self.projection_matrix.apply_transform(&transform);
         self
     }
 
@@ -72,40 +71,9 @@ impl Camera {
         self.bind.layout()
     }
 
+    #[inline(always)]
     pub fn write_buffer(&self, render_context: &RenderContext) {
         self.bind.uniform().write(render_context, self.uniform);
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct CameraTransform {
-    pub position: Vector3<f32>,
-    pub rotation: Quaternion<f32>,
-    pub scale: f32,
-}
-
-impl CameraTransform {
-    #[inline(always)]
-    pub const fn new() -> Self {
-        Self {
-            position: Vector3::new(0.0, 0.0, 0.0),
-            rotation: Quaternion::new(1.0, 0.0, 0.0, 0.0),
-            scale: 1.0,
-        }
-    }
-
-    #[inline]
-    pub fn transform_matrix(&self) -> Matrix4<f32> {
-        Matrix4::from_translation(self.position)
-            * Matrix4::from(self.rotation)
-            * Matrix4::from_scale(self.scale)
-    }
-}
-
-impl Default for CameraTransform {
-    #[inline(always)]
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -163,7 +131,7 @@ impl ProjectionMatrix {
         self.matrix
     }
 
-    pub fn apply_transform(self, transform: &CameraTransform) -> CameraUniform {
+    pub fn apply_transform(self, transform: &Transform) -> CameraUniform {
         CameraUniform {
             matrix: (self.matrix * transform.transform_matrix()).into(),
         }

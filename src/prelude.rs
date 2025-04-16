@@ -3,14 +3,19 @@ pub use crate::{
     handler::{
         app::{App, AppConfig},
         window::{Window, WindowCommandEncoder, WindowConfig},
-        Handler, HandlerConfig,
+        Handler,
     },
     layout::{
+        compute_shader::{
+            ApplyComputeShaderInstance, ComputeShader, ComputeShaderHandle, ComputeShaderInstance,
+            DefaultComputeShaderInstance, StaticComputeShaderInstance,
+        },
         shader::{
             ApplyShaderInstance, DefaultShaderInstance, Shader, ShaderHandle, ShaderInstance,
             StaticShaderInstance,
         },
-        CreatePipeline, Layout, LayoutConfig, LayoutVertex, RawLayout, ShaderConfig,
+        ComputeLayout, ComputeLayoutConfig, CreateComputePipeline, CreatePipeline, Layout,
+        LayoutConfig, LayoutVertex, RawLayout, ShaderConfig, SharedComputeLayoutData,
         SharedLayoutData, Vertex,
     },
     render_context::{CommandEncoder, RenderContext, RenderContextConfig, RenderPass},
@@ -18,7 +23,10 @@ pub use crate::{
         raw_mesh::{index_format, RawMesh},
         Surface,
     },
-    texture::RawTexture,
+    texture::{
+        RawTexture, RawTextureView, Sampler, SamplerConfig, Texture, Texture1D, Texture2D,
+        Texture3D, TextureConfig,
+    },
 };
 
 pub use std::{
@@ -36,10 +44,11 @@ pub use strong_count::prelude::*;
 
 pub mod core {
     pub use crate::core::{
-        camera::{
-            Camera, CameraBind, CameraBindLayout, CameraTransform, CameraUniform, Projection,
-        },
+        camera::{Camera, CameraBind, CameraBindLayout, CameraUniform, Projection},
+        grounded_camera::GroundedCamera,
+        post_processing::{PostProc, PostProcBind, PostProcBindLayout},
         surface::{AscMesh, ExtendedSurface, Mesh, SurfaceExt},
+        transform::Transform,
         vertex::{PosVertex, RBGAVertex, RGBVertex, UVVertex},
     };
 }

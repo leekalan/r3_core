@@ -60,6 +60,7 @@ impl<S: Shader> Shader for Asc<S> {
     }
 }
 
+#[derive(Debug)]
 pub struct ShaderInstance<S: Shader> {
     shader: S,
     settings: RwLock<S::Settings>,
@@ -101,6 +102,7 @@ impl<S: Shader> ShaderInstance<S> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct StaticShaderInstance<S: Shader> {
     shader: S,
     settings: S::Settings,
@@ -139,6 +141,8 @@ impl<S: Shader> StaticShaderInstance<S> {
     }
 }
 
+#[repr(transparent)]
+#[derive(Debug, Clone)]
 pub struct DefaultShaderInstance<S: Shader> {
     shader: S,
 }

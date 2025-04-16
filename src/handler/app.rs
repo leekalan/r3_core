@@ -1,11 +1,13 @@
 use crate::prelude::*;
 
+#[derive(Debug)]
 pub struct AppConfig<'r, 'w, C> {
     pub render_context: &'r RenderContext,
     pub window: &'w mut Window,
-    pub state_config: C,
+    pub state: C,
 }
 
+#[derive(Debug)]
 pub struct App<S> {
     pub render_context: Asc<RenderContext>,
     pub state: S,
