@@ -73,10 +73,8 @@ fn on_start(app: AppConfig<Void>, _: &ActiveEventLoop) -> State {
 
     let post_processing_layout = PostProcessingLayout::new(app.render_context, width, height);
 
-    let crt_shader = DefaultShaderInstance::new(CrtShader::new(
-        app.render_context,
-        &post_processing_layout,
-    ));
+    let crt_shader =
+        DefaultShaderInstance::new(CrtShader::new(app.render_context, &post_processing_layout));
 
     State {
         camera_controller,
