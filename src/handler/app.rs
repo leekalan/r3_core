@@ -28,4 +28,8 @@ impl<S> App<S> {
     pub fn command_encoder(&self) -> WindowCommandEncoder {
         self.window.command_encoder()
     }
+
+    pub fn winit_window(&self) -> &winit::window::Window {
+        &self.window.window
+    }
 }

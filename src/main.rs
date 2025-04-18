@@ -1,11 +1,14 @@
-use r3_core::prelude::{core::*, *};
+use r3_core::{
+    handler::EventResult,
+    prelude::{core::*, *},
+};
 
 use cgmath::Vector3;
 
 use wgpu::Extent3d;
 use winit::{
     event::WindowEvent,
-    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    event_loop::{ActiveEventLoop, EventLoop},
     window::WindowId,
 };
 
@@ -20,8 +23,6 @@ async fn main() {
     env_logger::init();
     let event_loop = EventLoop::new().unwrap();
 
-    event_loop.set_control_flow(ControlFlow::Poll);
-
     let mut handler = Handler::new(
         render_context,
         WindowConfig {
@@ -35,6 +36,7 @@ async fn main() {
         },
         on_start,
         on_event,
+        on_close,
     );
 
     handler.init(event_loop);
@@ -71,7 +73,7 @@ fn on_start(app: AppConfig<Void>, _: &ActiveEventLoop) -> State {
 
     let post_processing_layout = PostProcessingLayout::new(app.render_context, width, height);
 
-    let post_processing_shader = DefaultShaderInstance::new(PostProcessingShader::new(
+    let crt_shader = DefaultShaderInstance::new(CrtShader::new(
         app.render_context,
         &post_processing_layout,
     ));
@@ -82,11 +84,16 @@ fn on_start(app: AppConfig<Void>, _: &ActiveEventLoop) -> State {
         _layout: layout,
         mesh,
         post_processing_layout,
-        post_processing_shader,
+        crt_shader,
     }
 }
 
-fn on_event(app: &mut App<State>, _: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
+fn on_event(
+    app: &mut App<State>,
+    _: &ActiveEventLoop,
+    _: WindowId,
+    event: WindowEvent,
+) -> EventResult {
     let post_proc = &mut app.state.post_processing_layout.post_proc;
 
     let camera = &mut app.state.camera;
@@ -128,10 +135,16 @@ fn on_event(app: &mut App<State>, _: &ActiveEventLoop, _: WindowId, event: Windo
     encoder
         .render_pass(None, false)
         .set_shared_data(post_proc)
-        .apply_shader(&app.state.post_processing_shader)
+        .apply_shader(&app.state.crt_shader)
         .draw_screen_quad();
 
     encoder.present();
+
+    EventResult::Redraw
+}
+
+fn on_close(_: &mut App<State>, _: &ActiveEventLoop, _: WindowId) {
+    println!("Exiting...");
 }
 
 #[derive(Debug)]
@@ -141,7 +154,7 @@ struct State {
     _layout: NewLayout,
     mesh: Mesh<DefaultShaderInstance<NewShader>>,
     post_processing_layout: PostProcessingLayout,
-    post_processing_shader: DefaultShaderInstance<PostProcessingShader>,
+    crt_shader: DefaultShaderInstance<CrtShader>,
 }
 
 #[repr(transparent)]
@@ -271,11 +284,11 @@ impl Layout for PostProcessingLayout {
 
 #[repr(transparent)]
 #[derive(Debug, Clone)]
-struct PostProcessingShader {
+struct CrtShader {
     pipeline: wgpu::RenderPipeline,
 }
 
-impl PostProcessingShader {
+impl CrtShader {
     fn new(render_context: &RenderContext, layout: &PostProcessingLayout) -> Self {
         let module = render_context.create_shader_module(
             Some("Post Processing"),
@@ -295,7 +308,7 @@ impl PostProcessingShader {
     }
 }
 
-impl Shader for PostProcessingShader {
+impl Shader for CrtShader {
     type Layout = PostProcessingLayout;
 
     fn get_pipeline(&self, _: &Self::Settings) -> &wgpu::RenderPipeline {

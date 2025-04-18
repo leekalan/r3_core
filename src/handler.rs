@@ -35,10 +35,17 @@ pub trait OnEventCallback<S> {
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
         event: WindowEvent,
-    );
+    ) -> EventResult;
+}
+pub enum EventResult {
+    Redraw,
+    Pause,
+    Quit,
 }
 
-impl<F: Fn(&mut App<S>, &ActiveEventLoop, WindowId, WindowEvent), S> OnEventCallback<S> for F {
+impl<F: Fn(&mut App<S>, &ActiveEventLoop, WindowId, WindowEvent) -> EventResult, S>
+    OnEventCallback<S> for F
+{
     #[inline(always)]
     fn call(
         &mut self,
@@ -46,14 +53,38 @@ impl<F: Fn(&mut App<S>, &ActiveEventLoop, WindowId, WindowEvent), S> OnEventCall
         event_loop: &ActiveEventLoop,
         window_id: WindowId,
         event: WindowEvent,
-    ) {
-        self(app, event_loop, window_id, event);
+    ) -> EventResult {
+        self(app, event_loop, window_id, event)
     }
 }
 
 impl<S> OnEventCallback<S> for Void {
     #[inline(always)]
-    fn call(&mut self, _: &mut App<S>, _: &ActiveEventLoop, _: WindowId, _: WindowEvent) {}
+    fn call(
+        &mut self,
+        _: &mut App<S>,
+        _: &ActiveEventLoop,
+        _: WindowId,
+        _: WindowEvent,
+    ) -> EventResult {
+        EventResult::Pause
+    }
+}
+
+pub trait OnCloseCallBack<S> {
+    fn call(self, app: &mut App<S>, event_loop: &ActiveEventLoop, window_id: WindowId);
+}
+
+impl<F: FnOnce(&mut App<S>, &ActiveEventLoop, WindowId), S> OnCloseCallBack<S> for F {
+    #[inline(always)]
+    fn call(self, app: &mut App<S>, event_loop: &ActiveEventLoop, window_id: WindowId) {
+        self(app, event_loop, window_id)
+    }
+}
+
+impl<S> OnCloseCallBack<S> for Void {
+    #[inline(always)]
+    fn call(self, _: &mut App<S>, _: &ActiveEventLoop, _: WindowId) {}
 }
 
 #[derive(Debug)]
@@ -62,6 +93,7 @@ pub enum Handler<
     S = Void,
     OnStart: OnStartCallback<C, S> = Void,
     OnEvent: OnEventCallback<S> = Void,
+    OnClose: OnCloseCallBack<S> = Void,
 > {
     Uninit {
         render_context: Asc<RenderContext>,
@@ -69,15 +101,22 @@ pub enum Handler<
         state: Option<C>,
         on_start: Option<OnStart>,
         on_event: Option<OnEvent>,
+        on_close: Option<OnClose>,
     },
     Active {
         app: App<S>,
         on_event: OnEvent,
+        on_close: Option<OnClose>,
     },
 }
 
-impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>>
-    Handler<C, S, OnStart, OnEvent>
+impl<
+        C,
+        S,
+        OnStart: OnStartCallback<C, S>,
+        OnEvent: OnEventCallback<S>,
+        OnClose: OnCloseCallBack<S>,
+    > Handler<C, S, OnStart, OnEvent, OnClose>
 {
     #[inline(always)]
     pub fn new(
@@ -85,6 +124,7 @@ impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>>
         window_config: WindowConfig,
         on_start: OnStart,
         on_event: OnEvent,
+        on_close: OnClose,
     ) -> Self
     where
         C: Default,
@@ -95,6 +135,7 @@ impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>>
             state: Some(default()),
             on_start: Some(on_start),
             on_event: Some(on_event),
+            on_close: Some(on_close),
         }
     }
 
@@ -105,6 +146,7 @@ impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>>
         state: C,
         on_start: OnStart,
         on_event: OnEvent,
+        on_close: OnClose,
     ) -> Self {
         Self::Uninit {
             render_context,
@@ -112,6 +154,7 @@ impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>>
             state: Some(state),
             on_start: Some(on_start),
             on_event: Some(on_event),
+            on_close: Some(on_close),
         }
     }
 
@@ -121,8 +164,13 @@ impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>>
     }
 }
 
-impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>> ApplicationHandler
-    for Handler<C, S, OnStart, OnEvent>
+impl<
+        C,
+        S,
+        OnStart: OnStartCallback<C, S>,
+        OnEvent: OnEventCallback<S>,
+        OnClose: OnCloseCallBack<S>,
+    > ApplicationHandler for Handler<C, S, OnStart, OnEvent, OnClose>
 {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if let Handler::Uninit {
@@ -131,6 +179,7 @@ impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>> Applicat
             state,
             on_start,
             on_event,
+            on_close,
         } = self
         {
             let winit_window = Arc::new(
@@ -153,7 +202,8 @@ impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>> Applicat
 
             *self = Handler::Active {
                 app,
-                on_event: on_event.take().unwrap(),
+                on_event: unsafe { on_event.take().unwrap_unchecked() },
+                on_close: on_close.take(),
             };
         }
     }
@@ -164,16 +214,32 @@ impl<C, S, OnStart: OnStartCallback<C, S>, OnEvent: OnEventCallback<S>> Applicat
         window_id: WindowId,
         event: WindowEvent,
     ) {
-        if let WindowEvent::CloseRequested = event {
+        let Handler::Active {
+            app,
+            on_event,
+            on_close,
+        } = self
+        else {
             event_loop.exit();
+            return;
+        };
+
+        if let WindowEvent::CloseRequested = event {
+            unsafe { on_close.take().unwrap_unchecked() }.call(app, event_loop, window_id);
+            event_loop.exit();
+            return;
         } else if let WindowEvent::Resized(new_size) = event {
-            if let Handler::Active { app, .. } = self {
-                app.window.resize(new_size);
-            }
+            app.window.resize(new_size);
         }
 
-        if let Handler::Active { app, on_event } = self {
-            on_event.call(app, event_loop, window_id, event);
+        let result = on_event.call(app, event_loop, window_id, event);
+        match result {
+            EventResult::Redraw => app.winit_window().request_redraw(),
+            EventResult::Quit => {
+                unsafe { on_close.take().unwrap_unchecked() }.call(app, event_loop, window_id);
+                event_loop.exit()
+            }
+            EventResult::Pause => (),
         }
     }
 }
