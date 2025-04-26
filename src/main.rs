@@ -66,8 +66,8 @@ fn on_start(app: AppConfig<Void>, _: &ActiveEventLoop) -> State {
 
     let shader_instance = DefaultShaderInstance::new(shader);
 
-    let mesh = Mesh::new(
-        RawMesh::new_uint16(app.render_context, VERTICES, INDICES),
+    let mesh = ShadedMesh::new(
+        SimpleMesh::new_uint16(app.render_context, VERTICES, INDICES),
         shader_instance,
     );
 
@@ -132,7 +132,7 @@ fn on_event(
 
     encoder
         .render_pass(None, false)
-        .set_shared_data(post_proc)
+        .set_shared_data(&*post_proc)
         .apply_shader(&app.state.crt_shader)
         .draw_screen_quad();
 
@@ -150,7 +150,7 @@ struct State {
     camera_controller: GroundedCamera,
     camera: Camera,
     _layout: NewLayout,
-    mesh: Mesh<DefaultShaderInstance<NewShader>>,
+    mesh: ShadedMesh<SimpleMesh<RGBVertex, index_format::Uint16>, DefaultShaderInstance<NewShader>>,
     post_processing_layout: PostProcessingLayout,
     crt_shader: DefaultShaderInstance<CrtShader>,
 }
@@ -177,16 +177,16 @@ impl NewLayout {
 }
 
 impl Layout for NewLayout {
-    type Vertex = RGBVertex;
-    type SharedData = CameraBind;
+    type VertexLayout = RGBVertex;
+    type SharedData<'a> = &'a CameraBind;
 
     #[inline(always)]
-    fn raw_layout(&self) -> &RawLayout<Self::Vertex> {
+    fn raw_layout(&self) -> &RawLayout<Self::VertexLayout> {
         &self.layout
     }
 
     #[inline(always)]
-    fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: &SharedLayoutData<Self>) {
+    fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: SharedData<Self>) {
         render_pass.set_bind_group(0, shared_data.bind_group(), &[]);
     }
 }
@@ -268,14 +268,14 @@ impl PostProcessingLayout {
 }
 
 impl Layout for PostProcessingLayout {
-    type Vertex = Void;
-    type SharedData = PostProc;
+    type VertexLayout = Void;
+    type SharedData<'a> = &'a PostProc;
 
-    fn raw_layout(&self) -> &RawLayout<Self::Vertex> {
+    fn raw_layout(&self) -> &RawLayout<Self::VertexLayout> {
         &self.layout
     }
 
-    fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: &SharedLayoutData<Self>) {
+    fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: SharedData<Self>) {
         render_pass.set_bind_group(0, shared_data.bind_group(), &[]);
     }
 }

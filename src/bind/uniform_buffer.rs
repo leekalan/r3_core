@@ -1,5 +1,3 @@
-use wgpu::util::DeviceExt;
-
 use crate::prelude::*;
 
 #[repr(transparent)]
@@ -31,11 +29,19 @@ impl<T: 'static + Copy + bytemuck::Pod + bytemuck::Zeroable> UniformBuffer<T> {
     pub fn new_init(render_context: &RenderContext, value: T) -> Self {
         let device = unsafe { render_context.device() };
 
-        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(&[value]),
+            size: size_of::<T>() as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: true,
         });
+
+        buffer
+            .slice(..)
+            .get_mapped_range_mut()
+            .copy_from_slice(bytemuck::cast_slice(&[value]));
+
+        buffer.unmap();
 
         Self {
             buffer,
@@ -53,7 +59,7 @@ impl<T: 'static + Copy + bytemuck::Pod + bytemuck::Zeroable> UniformBuffer<T> {
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            usage,
+            usage: wgpu::BufferUsages::UNIFORM | usage,
             size: size_of::<T>() as u64,
             mapped_at_creation,
         });
@@ -72,11 +78,19 @@ impl<T: 'static + Copy + bytemuck::Pod + bytemuck::Zeroable> UniformBuffer<T> {
     ) -> Self {
         let device = unsafe { render_context.device() };
 
-        let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            contents: bytemuck::cast_slice(&[value]),
-            usage,
+            usage: wgpu::BufferUsages::UNIFORM | usage,
+            size: size_of::<T>() as u64,
+            mapped_at_creation: true,
         });
+
+        buffer
+            .slice(..)
+            .get_mapped_range_mut()
+            .copy_from_slice(bytemuck::cast_slice(&[value]));
+
+        buffer.unmap();
 
         Self {
             buffer,

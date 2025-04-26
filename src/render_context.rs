@@ -1,4 +1,6 @@
-use crate::prelude::*;
+use std::ops::Range;
+
+use crate::{prelude::*, surface::mesh::Mesh};
 
 #[derive(Default, Debug, Clone)]
 pub struct RenderContextConfig {
@@ -188,7 +190,7 @@ impl<'r, L> RenderPass<'r, L> {
     #[inline]
     pub fn set_shared_data<NewLayout: Layout>(
         mut self,
-        shared_data: &SharedLayoutData<NewLayout>,
+        shared_data: SharedData<NewLayout>,
     ) -> RenderPass<'r, NewLayout> {
         let inner = unsafe { self.inner() };
 
@@ -200,11 +202,11 @@ impl<'r, L> RenderPass<'r, L> {
     #[inline]
     pub fn create_shared_data<NewLayout: Layout>(mut self) -> RenderPass<'r, NewLayout>
     where
-        SharedLayoutData<NewLayout>: Default,
+        for<'a> SharedData<'a, NewLayout>: Default,
     {
         let inner = unsafe { self.inner() };
 
-        NewLayout::set_shared_data(inner, &Default::default());
+        NewLayout::set_shared_data(inner, Default::default());
 
         unsafe { self.coerce() }
     }
@@ -233,11 +235,18 @@ impl<L: Layout> RenderPass<'_, L> {
     }
 
     #[inline]
-    pub fn draw_mesh<I: index_format::IndexFormat>(
+    pub fn draw_mesh<M: Mesh<Requirements<L::VertexLayout>>>(&mut self, mesh: &M) -> &mut Self {
+        unsafe { mesh.draw(self.inner()) };
+        self
+    }
+
+    #[inline]
+    pub fn draw_instanced_mesh<M: Mesh<Requirements<L::VertexLayout>>>(
         &mut self,
-        mesh: &RawMesh<L::Vertex, I>,
+        mesh: &M,
+        instances: Range<u32>,
     ) -> &mut Self {
-        mesh.draw(unsafe { self.inner() });
+        unsafe { mesh.draw_instanced(self.inner(), instances) };
         self
     }
 }
@@ -276,7 +285,7 @@ impl<'r, L> ComputePass<'r, L> {
     #[inline]
     pub fn set_shared_data<NewLayout: ComputeLayout>(
         mut self,
-        shared_data: &SharedComputeLayoutData<NewLayout>,
+        shared_data: SharedComputeData<NewLayout>,
     ) -> ComputePass<'r, NewLayout> {
         let inner = unsafe { self.inner() };
 
@@ -288,11 +297,11 @@ impl<'r, L> ComputePass<'r, L> {
     #[inline]
     pub fn create_shared_data<NewLayout: ComputeLayout>(mut self) -> ComputePass<'r, NewLayout>
     where
-        SharedComputeLayoutData<NewLayout>: Default,
+        for<'a> SharedComputeData<'a, NewLayout>: Default,
     {
         let inner = unsafe { self.inner() };
 
-        NewLayout::set_shared_data(inner, &Default::default());
+        NewLayout::set_shared_data(inner, Default::default());
 
         unsafe { self.coerce() }
     }

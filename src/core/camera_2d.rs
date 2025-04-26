@@ -1,34 +1,17 @@
-use std::f32::consts::PI;
+use cgmath::Matrix4;
 
 use crate::prelude::{core::*, *};
 
-use cgmath::{Matrix4, Rad};
-
-create_bind::bind!(CameraBind, CameraBindLayout {
-    UniformBuffers => {
-        uniform: CameraUniform => 0 for VERTEX,
-    },
-});
-
-#[rustfmt::skip]
-pub const OPENGL_TO_WGPU_MATRIX: cgmath::Matrix4<f32> = cgmath::Matrix4::new(
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.5,
-    0.0, 0.0, 0.0, 1.0,
-);
-
-#[derive(Debug, Clone)]
-pub struct Camera {
-    pub projection: Projection,
-    projection_matrix: ProjectionMatrix,
+pub struct Camera2d {
+    pub projection: Projection2d,
+    projection_matrix: Projection2dMatrix,
     uniform: CameraUniform,
     bind: CameraBind,
 }
 
-impl Camera {
+impl Camera2d {
     #[inline]
-    pub fn new(bind: CameraBind, projection: Projection, transform: Transform) -> Self {
+    pub fn new(bind: CameraBind, projection: Projection2d, transform: Transform2d) -> Self {
         let projection_matrix = projection.proj_matrix();
 
         Self {
@@ -46,13 +29,13 @@ impl Camera {
     }
 
     #[inline]
-    pub fn apply_transform(&mut self, transform: Transform) -> &mut Self {
+    pub fn apply_transform(&mut self, transform: Transform2d) -> &mut Self {
         self.uniform = self.projection_matrix.apply_transform(&transform);
         self
     }
 
     #[inline(always)]
-    pub const fn projection_matrix(&self) -> ProjectionMatrix {
+    pub const fn projection_matrix(&self) -> Projection2dMatrix {
         self.projection_matrix
     }
 
@@ -78,19 +61,15 @@ impl Camera {
 }
 
 #[derive(Copy, Clone, Debug)]
-pub struct Projection {
+pub struct Projection2d {
     pub aspect: f32,
-    pub fovy: Rad<f32>,
-    pub near: f32,
-    pub far: f32,
 }
 
-impl Projection {
+impl Projection2d {
     #[inline]
     pub fn new(width: f32, height: f32) -> Self {
         Self {
             aspect: width / height,
-            ..default()
         }
     }
 
@@ -100,54 +79,34 @@ impl Projection {
     }
 
     #[inline]
-    pub fn proj_matrix(&self) -> ProjectionMatrix {
-        ProjectionMatrix {
-            matrix: OPENGL_TO_WGPU_MATRIX
-                * cgmath::perspective(self.fovy, self.aspect, self.near, self.far),
+    pub fn proj_matrix(&self) -> Projection2dMatrix {
+        Projection2dMatrix {
+            matrix: Matrix4::from_nonuniform_scale(1.0 / self.aspect, 1.0, 1.0),
         }
     }
 }
 
-impl Default for Projection {
+impl Default for Projection2d {
     #[inline]
     fn default() -> Self {
-        Self {
-            aspect: 1.,
-            fovy: Rad(85. / 180. * PI),
-            near: 0.1,
-            far: 100.,
-        }
+        Self { aspect: 1. }
     }
 }
 
 #[repr(transparent)]
 #[derive(Copy, Clone, Debug)]
-pub struct ProjectionMatrix {
+pub struct Projection2dMatrix {
     matrix: Matrix4<f32>,
 }
 
-impl ProjectionMatrix {
+impl Projection2dMatrix {
     pub const fn matrix(self) -> Matrix4<f32> {
         self.matrix
     }
 
-    pub fn apply_transform(self, transform: &Transform) -> CameraUniform {
+    pub fn apply_transform(self, transform: &Transform2d) -> CameraUniform {
         CameraUniform {
             matrix: (self.matrix * transform.transform_matrix()).into(),
         }
-    }
-}
-
-pub type M4 = [[f32; 4]; 4];
-
-#[repr(transparent)]
-#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct CameraUniform {
-    pub matrix: M4,
-}
-
-impl CameraUniform {
-    pub const fn matrix(&self) -> &M4 {
-        &self.matrix
     }
 }

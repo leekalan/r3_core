@@ -32,9 +32,8 @@ fn fs(vs: VertexOutput) -> @location(0) vec4<f32> {
     var uv = fish_eye(vs.uv);
 
     var colour = crt(uv);
-    let intensity = dot(colour.rgb, vec3<f32>(0.299, 0.587, 0.114));
 
-    return vec4<f32>(vec3<f32>(intensity), colour.a);
+    return vec4<f32>(colour);
 }
 
 const warp: f32 = 0.75;
@@ -51,15 +50,24 @@ fn fish_eye(uv_in: vec2<f32>) -> vec2<f32> {
     return uv + 0.5;
 }
 
-const thickness: f32 = 0.5;
-const density: f32 = 500.0;
-const size: f32 = 2.0;
+const aberration: f32 = 0.7;
+const offset: f32 = -0.1;
+const density: f32 = 350.0;
+const size: f32 = 1 / 0.9;
 fn crt(uv: vec2<f32>) -> vec4<f32> {
     if (uv.y > 1.0 || uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0) {
         return vec4<f32>(0.0, 0.0, 0.0, 1.0);
     }
 
-    var mul = clamp((abs(sin(uv.y * density))-sin(thickness))*size, 0.0, 1.0);
+    let mul = vec3<f32>(
+        brightness(uv.y, aberration),
+        brightness(uv.y, 0.0),
+        brightness(uv.y, -aberration),
+    );
 
-    return mul * textureSample(pp_image, pp_sampler, uv);
+    return vec4<f32>(mul, 1.0) * textureSample(pp_image, pp_sampler, uv);
+}
+
+fn brightness(y: f32, shift: f32) -> f32 {
+    return clamp((abs(sin(shift + y * density)) + offset) * size, 0.0, 1.0);
 }

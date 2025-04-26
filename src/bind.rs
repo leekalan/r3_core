@@ -1,4 +1,5 @@
-pub mod buffer;
+pub mod dynamic_buffer;
+pub mod uniform_buffer;
 
 pub trait Bind {
     fn bind_group(&self) -> &wgpu::BindGroup;
@@ -24,7 +25,7 @@ pub mod create_bind {
     #[macro_export]
     macro_rules! bind {
         ($bind:ident, $bind_layout:ident {
-            $(Buffers => {
+            $(UniformBuffers => {
                 $($buffer:ident: $ty:ty => $binding:literal for $visibility:ident,)*
             },)?
             $(Textures => {
@@ -273,7 +274,7 @@ mod bind_tests {
     use crate::prelude::*;
 
     create_bind::bind!(SizeBind, SizeBindLayout {
-        Buffers => {
+        UniformBuffers => {
             width: f32 => 0 for VERTEX,
             height: f32 => 1 for VERTEX,
         },

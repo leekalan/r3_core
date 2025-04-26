@@ -1,9 +1,11 @@
 use crate::prelude::*;
 
-impl Vertex for Void {
-    fn desc() -> &'static [wgpu::VertexBufferLayout<'static>] {
-        &[]
-    }
+impl VertexBufferLayout for Void {
+    const DESC: &'static [wgpu::VertexBufferLayout<'static>] = &[];
+}
+
+impl VertexRequirements for Void {
+    type Requirements = ();
 }
 
 #[repr(C)]
@@ -12,17 +14,19 @@ pub struct PosVertex {
     pub position: [f32; 3],
 }
 
-impl Vertex for PosVertex {
-    fn desc() -> &'static [wgpu::VertexBufferLayout<'static>] {
-        const ATTR: [wgpu::VertexAttribute; 1] = wgpu::vertex_attr_array![0 => Float32x3];
+create_vertex_attr::attr!(PosVertex => [
+    0 => Float32x3,
+]);
 
-        &[wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &ATTR,
-        }]
-    }
+#[repr(C)]
+#[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct PosVertex2d {
+    pub position: [f32; 2],
 }
+
+create_vertex_attr::attr!(PosVertex2d => [
+    0 => Float32x2,
+]);
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -31,18 +35,10 @@ pub struct RGBVertex {
     pub color: [f32; 3],
 }
 
-impl Vertex for RGBVertex {
-    fn desc() -> &'static [wgpu::VertexBufferLayout<'static>] {
-        const ATTR: [wgpu::VertexAttribute; 2] =
-            wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x3];
-
-        &[wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &ATTR,
-        }]
-    }
-}
+create_vertex_attr::attr!(RGBVertex => [
+    0 => Float32x3,
+    1 => Float32x3,
+]);
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
@@ -51,6 +47,11 @@ pub struct RBGAVertex {
     pub color: [f32; 4],
 }
 
+create_vertex_attr::attr!(RBGAVertex => [
+    0 => Float32x3,
+    1 => Float32x4,
+]);
+
 #[repr(C)]
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct UVVertex {
@@ -58,20 +59,7 @@ pub struct UVVertex {
     pub tex_coords: [f32; 2],
 }
 
-impl Vertex for UVVertex {
-    fn desc() -> &'static [wgpu::VertexBufferLayout<'static>] {
-        const ATTR: [wgpu::VertexAttribute; 2] =
-            wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x2];
-
-        &[wgpu::VertexBufferLayout {
-            array_stride: std::mem::size_of::<Self>() as wgpu::BufferAddress,
-            step_mode: wgpu::VertexStepMode::Vertex,
-            attributes: &ATTR,
-        }]
-    }
-}
-
-pub fn func(b: bool) {
-    let _a = !b;
-    println!("temp");
-}
+create_vertex_attr::attr!(UVVertex => [
+    0 => Float32x3,
+    1 => Float32x2,
+]);

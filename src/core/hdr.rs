@@ -52,3 +52,43 @@ impl Hdr {
         self.post_proc.raw_texture()
     }
 }
+
+pub trait CommandEncoderHdr {
+    fn hdr_render_pass(
+        &mut self,
+        hdr: &Hdr,
+        load: Option<wgpu::LoadOp<wgpu::Color>>,
+        depth_stencil_attachment: Option<wgpu::RenderPassDepthStencilAttachment<'_>>,
+    );
+}
+
+impl CommandEncoderHdr for CommandEncoder<'_> {
+    #[inline(always)]
+    fn hdr_render_pass(
+        &mut self,
+        hdr: &Hdr,
+        load: Option<wgpu::LoadOp<wgpu::Color>>,
+        depth_stencil_attachment: Option<wgpu::RenderPassDepthStencilAttachment<'_>>,
+    ) {
+        self.render_pass(
+            unsafe { hdr.texture().view() },
+            load,
+            depth_stencil_attachment,
+        );
+    }
+}
+
+pub trait WindowCommandEncoderHdr {
+    fn hdr_render_pass(&mut self, hdr: &Hdr, depth_stencil_attachment: bool);
+}
+
+impl WindowCommandEncoderHdr for WindowCommandEncoder<'_> {
+    #[inline(always)]
+    fn hdr_render_pass(&mut self, hdr: &Hdr, depth_stencil_attachment: bool) {
+        self.render_pass_with(
+            unsafe { hdr.texture().view() },
+            None,
+            depth_stencil_attachment,
+        );
+    }
+}

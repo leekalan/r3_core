@@ -4,24 +4,21 @@ use crate::prelude::*;
 
 pub mod compute_shader;
 pub mod shader;
+pub mod vertex;
 
-pub type LayoutVertex<L> = <L as Layout>::Vertex;
-pub type SharedLayoutData<L> = <L as Layout>::SharedData;
+pub type VertexLayout<L> = <L as Layout>::VertexLayout;
+pub type SharedData<'a, L> = <L as Layout>::SharedData<'a>;
 
-pub type SharedComputeLayoutData<L> = <L as ComputeLayout>::SharedData;
-
-pub trait Vertex: Debug + Clone {
-    fn desc() -> &'static [wgpu::VertexBufferLayout<'static>];
-}
+pub type SharedComputeData<'a, L> = <L as ComputeLayout>::SharedData<'a>;
 
 pub trait Layout {
-    type Vertex: Vertex;
-    type SharedData = Void;
+    type VertexLayout: VertexBufferLayout;
+    type SharedData<'a> = Void;
 
-    fn raw_layout(&self) -> &RawLayout<Self::Vertex>;
+    fn raw_layout(&self) -> &RawLayout<Self::VertexLayout>;
 
     #[allow(unused)]
-    fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: &SharedLayoutData<Self>) {}
+    fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: SharedData<Self>) {}
 }
 
 pub trait CreatePipeline: Layout {
@@ -45,7 +42,7 @@ impl<L: Layout> CreatePipeline for L {
 }
 
 #[derive(Debug, Clone)]
-pub struct RawLayout<V: Vertex> {
+pub struct RawLayout<V: VertexBufferLayout> {
     pipeline_layout: wgpu::PipelineLayout,
     format: wgpu::TextureFormat,
     __vertex: PhantomData<V>,
@@ -66,7 +63,7 @@ impl Default for LayoutConfig<'_> {
     }
 }
 
-impl<V: Vertex> RawLayout<V> {
+impl<V: VertexBufferLayout> RawLayout<V> {
     fn layout(&self) -> &wgpu::PipelineLayout {
         &self.pipeline_layout
     }
@@ -111,7 +108,7 @@ impl<V: Vertex> RawLayout<V> {
             vertex: wgpu::VertexState {
                 module,
                 entry_point: Some(shader_config.vertex_entry.unwrap_or("vs")),
-                buffers: V::desc(),
+                buffers: V::DESC,
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -166,15 +163,12 @@ pub struct ShaderConfig<'a> {
 }
 
 pub trait ComputeLayout {
-    type SharedData = Void;
+    type SharedData<'a> = Void;
 
     fn raw_layout(&self) -> &RawComputeLayout;
 
     #[allow(unused)]
-    fn set_shared_data(
-        compute_pass: &mut wgpu::ComputePass,
-        shared_data: &SharedComputeLayoutData<Self>,
-    ) {
+    fn set_shared_data(compute_pass: &mut wgpu::ComputePass, shared_data: SharedComputeData<Self>) {
     }
 }
 

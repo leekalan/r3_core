@@ -210,14 +210,22 @@ impl<'a> WindowCommandEncoder<'a> {
         &mut self,
         view: &RawTextureView<Texture2D>,
         load: Option<wgpu::LoadOp<wgpu::Color>>,
-        depth_stencil_attachment: Option<wgpu::RenderPassDepthStencilAttachment>,
+        depth_stencil_attachment: bool,
     ) -> RenderPass<Void> {
         self.command_encoder.render_pass(
             view,
             Some(load.unwrap_or(wgpu::LoadOp::Clear(
                 self.clear.unwrap_or(wgpu::Color::TRANSPARENT),
             ))),
-            depth_stencil_attachment,
+            if depth_stencil_attachment {
+                Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_view,
+                    depth_ops: self.depth_ops,
+                    stencil_ops: self.stencil_ops,
+                })
+            } else {
+                None
+            },
         )
     }
 
