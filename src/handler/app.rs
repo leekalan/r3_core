@@ -9,14 +9,14 @@ pub struct AppConfig<'r, 'w, C> {
 
 #[derive(Debug)]
 pub struct App<S> {
-    pub render_context: Asc<RenderContext>,
+    pub render_context: RenderContext,
     pub state: S,
     pub window: Window,
 }
 
 impl<S> App<S> {
     #[inline]
-    pub fn new(render_context: Asc<RenderContext>, window: Window, state: S) -> Self {
+    pub fn new(render_context: RenderContext, window: Window, state: S) -> Self {
         Self {
             render_context,
             window,

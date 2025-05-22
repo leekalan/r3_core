@@ -96,7 +96,7 @@ pub enum Handler<
     OnClose: OnCloseCallBack<S> = Void,
 > {
     Uninit {
-        render_context: Asc<RenderContext>,
+        render_context: RenderContext,
         window_config: WindowConfig,
         state: Option<C>,
         on_start: Option<OnStart>,
@@ -120,7 +120,7 @@ impl<
 {
     #[inline(always)]
     pub fn new(
-        render_context: Asc<RenderContext>,
+        render_context: RenderContext,
         window_config: WindowConfig,
         on_start: OnStart,
         on_event: OnEvent,
@@ -141,7 +141,7 @@ impl<
 
     #[inline(always)]
     pub fn new_with(
-        render_context: Asc<RenderContext>,
+        render_context: RenderContext,
         window_config: WindowConfig,
         state: C,
         on_start: OnStart,

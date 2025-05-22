@@ -17,7 +17,7 @@ pub struct WindowConfig {
 pub struct Window {
     pub window: Arc<winit::window::Window>,
 
-    pub render_context: Asc<RenderContext>,
+    pub render_context: RenderContext,
 
     pub surface_config: wgpu::SurfaceConfiguration,
     pub surface: wgpu::Surface<'static>,
@@ -30,7 +30,7 @@ pub struct Window {
 impl Window {
     pub fn new(
         window: Arc<winit::window::Window>,
-        render_context: Asc<RenderContext>,
+        render_context: RenderContext,
         config: &WindowConfig,
     ) -> Self {
         let size = window.inner_size();

@@ -15,51 +15,6 @@ pub trait Shader {
     fn apply_settings(&self, render_pass: &mut wgpu::RenderPass, settings: &Self::Settings) {}
 }
 
-impl<S: Shader> Shader for Box<S> {
-    type Layout = S::Layout;
-    type Settings = S::Settings;
-
-    fn get_pipeline(&self, settings: &Self::Settings) -> &wgpu::RenderPipeline {
-        self.as_ref().get_pipeline(settings)
-    }
-}
-
-impl<S: Shader> Shader for Rc<S> {
-    type Layout = S::Layout;
-    type Settings = S::Settings;
-
-    fn get_pipeline(&self, settings: &Self::Settings) -> &wgpu::RenderPipeline {
-        self.as_ref().get_pipeline(settings)
-    }
-}
-
-impl<S: Shader> Shader for Arc<S> {
-    type Layout = S::Layout;
-    type Settings = S::Settings;
-
-    fn get_pipeline(&self, settings: &Self::Settings) -> &wgpu::RenderPipeline {
-        self.as_ref().get_pipeline(settings)
-    }
-}
-
-impl<S: Shader> Shader for Sc<S> {
-    type Layout = S::Layout;
-    type Settings = S::Settings;
-
-    fn get_pipeline(&self, settings: &Self::Settings) -> &wgpu::RenderPipeline {
-        self.as_ref().get_pipeline(settings)
-    }
-}
-
-impl<S: Shader> Shader for Asc<S> {
-    type Layout = S::Layout;
-    type Settings = S::Settings;
-
-    fn get_pipeline(&self, settings: &Self::Settings) -> &wgpu::RenderPipeline {
-        self.as_ref().get_pipeline(settings)
-    }
-}
-
 #[derive(Debug)]
 pub struct ShaderInstance<S: Shader> {
     shader: S,
