@@ -43,7 +43,7 @@ impl RenderContext {
         &self.queue
     }
 
-    pub async fn new(config: RenderContextConfig) -> Asc<Self> {
+    pub async fn new(config: RenderContextConfig) -> Self {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: config.backends.unwrap_or(wgpu::Backends::PRIMARY),
             ..Default::default()
@@ -71,12 +71,12 @@ impl RenderContext {
             .await
             .unwrap();
 
-        Asc::new(Self {
+        Self {
             instance,
             adapter,
             device,
             queue,
-        })
+        }
     }
 
     #[inline]
