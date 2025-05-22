@@ -9,7 +9,7 @@ pub struct TileInstance {
     tile_id: u32,
 }
 
-create_vertex_layout::layout!(pub struct SimpleTileLayout {
+create_vertex_layout::layout!(pub SimpleTileLayout {
     PosVertex2d => Vertex,
     TileInstance => Instance,
 });

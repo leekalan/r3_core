@@ -162,7 +162,7 @@ pub mod create_vertex_layout {
     #[allow(unused)]
     #[macro_export]
     macro_rules! layout {
-        ($vis:vis struct $L:ident {
+        ($vis:vis $L:ident {
             $($V:ty => $step_mode:ident),*$(,)?
         }) => {
             #[derive(Debug, Clone, Copy)]
@@ -241,7 +241,7 @@ pub mod test {
         );
     }
 
-    create_vertex_layout::layout!(struct VertexLayout {
+    create_vertex_layout::layout!(VertexLayout {
         Vertex => Vertex,
         Instance => Instance,
         VertexExtra => Vertex,

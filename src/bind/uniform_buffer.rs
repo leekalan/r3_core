@@ -101,7 +101,7 @@ impl<T: 'static + Copy + bytemuck::Pod + bytemuck::Zeroable> UniformBuffer<T> {
     /// # Safety
     /// This function is unsafe because it returns the inner `wgpu::Buffer`
     #[inline(always)]
-    pub unsafe fn buffer(&self) -> &wgpu::Buffer {
+    pub unsafe fn wgpu_buffer(&self) -> &wgpu::Buffer {
         &self.buffer
     }
 

@@ -137,7 +137,7 @@ impl<T: 'static + Copy + bytemuck::Pod + bytemuck::Zeroable> DynamicBuffer<T> {
     /// # Safety
     /// This function is unsafe because it returns the inner `wgpu::Buffer` as a slice
     #[inline(always)]
-    pub unsafe fn buffer(&self) -> wgpu::BufferSlice {
+    pub unsafe fn wgpu_buffer(&self) -> wgpu::BufferSlice {
         self.buffer.slice(..mem::size_of::<T>() as u64 * self.size)
     }
 

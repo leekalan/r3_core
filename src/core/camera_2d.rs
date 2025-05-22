@@ -11,11 +11,11 @@ pub struct Camera2d {
 
 impl Camera2d {
     #[inline]
-    pub fn new(bind: CameraBind, projection: Projection2d, transform: Transform2d) -> Self {
+    pub fn new(bind: CameraBind, projection: Projection2d, transform: &Transform2d) -> Self {
         let projection_matrix = projection.proj_matrix();
 
         Self {
-            uniform: projection_matrix.apply_transform(&transform),
+            uniform: projection_matrix.apply_transform(transform),
             projection_matrix,
             projection,
             bind,

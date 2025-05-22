@@ -155,7 +155,7 @@ pub mod create_bind {
                             $($(
                                 wgpu::BindGroupEntry {
                                     binding: $binding,
-                                    resource: unsafe { $buffer.buffer() }.as_entire_binding(),
+                                    resource: unsafe { $buffer.wgpu_buffer() }.as_entire_binding(),
                                 }
                             ,)*)?
                             $($(
@@ -203,7 +203,7 @@ pub mod create_bind {
                             $($(
                                 wgpu::BindGroupEntry {
                                     binding: $binding,
-                                    resource: unsafe { self.$buffer.buffer() }.as_entire_binding(),
+                                    resource: unsafe { self.$buffer.wgpu_buffer() }.as_entire_binding(),
                                 }
                             ,)*)?
                             $($(
