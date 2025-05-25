@@ -1,5 +1,3 @@
-use std::num::NonZeroU64;
-
 use crate::prelude::{core::*, *};
 
 #[repr(C)]
@@ -41,57 +39,7 @@ impl TilesetQuad {
     }
 }
 
-pub struct TilesetMesh<
-    L: Layout<VertexLayout = PosVertex2d>,
-    S: ApplyShaderInstance<Layout = L>,
-    VertexInstance: VertexBufferLayout + bytemuck::NoUninit + bytemuck::Pod,
-> {
-    pub quad: TilesetQuad,
-    pub shader: S,
-    pub instance_buffer: DynamicBuffer<VertexInstance>,
-}
-
 create_vertex_attr::attr!(TileInstance => [
     0 => Float32x2,
     1 => Uint32,
 ]);
-
-impl<
-        L: Layout<VertexLayout = PosVertex2d>,
-        S: ApplyShaderInstance<Layout = L>,
-        VertexInstance: VertexBufferLayout + bytemuck::NoUninit + bytemuck::Pod,
-    > TilesetMesh<L, S, VertexInstance>
-{
-    #[inline]
-    pub fn new(
-        render_context: &RenderContext,
-        quad: TilesetQuad,
-        shader: S,
-        max_size: NonZeroU64,
-    ) -> Self {
-        let instance_buffer = DynamicBuffer::new(render_context, max_size);
-
-        Self {
-            quad,
-            shader,
-            instance_buffer,
-        }
-    }
-}
-
-impl<
-        L: Layout<VertexLayout = PosVertex2d>,
-        S: ApplyShaderInstance<Layout = L>,
-        VertexInstance: VertexBufferLayout + bytemuck::NoUninit + bytemuck::Pod,
-    > Surface for TilesetMesh<L, S, VertexInstance>
-{
-    type Layout = L;
-
-    fn draw(&self, render_pass: &mut RenderPass<Self::Layout>) {
-        render_pass.apply_shader(&self.shader);
-
-        let mesh = &*self.quad.0;
-
-        render_pass.draw_mesh(mesh);
-    }
-}

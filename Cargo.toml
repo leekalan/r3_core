@@ -3,6 +3,10 @@ name = "r3_core"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["ecs"]
+ecs = ["dep:bevy_ecs"]
+
 [dependencies]
 winit = { version = "0.30.11" }
 env_logger = "0.11.8"
@@ -11,5 +15,7 @@ tokio = { version = "1.45.0", features = ["full"] }
 bytemuck = { version = "1.23.0", features = ["derive"] }
 image = "0.25.6"
 cgmath = "0.18.0"
+
+bevy_ecs = { version = "0.16.0", optional = true }
 
 strong_count = { path = "../strong_count" }

@@ -289,8 +289,8 @@ mod bind_tests {
         let bind = SizeBind::new(
             &render_context,
             bind_layout,
-            UniformBuffer::new_init(&render_context, 0.0),
-            UniformBuffer::new_init(&render_context, 0.0),
+            UniformBuffer::new_init(&render_context, &0.0),
+            UniformBuffer::new_init(&render_context, &0.0),
         );
 
         drop(bind);

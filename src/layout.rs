@@ -6,6 +6,8 @@ pub mod compute_shader;
 pub mod shader;
 pub mod vertex;
 
+pub mod instances;
+
 pub type VertexLayout<L> = <L as Layout>::VertexLayout;
 pub type SharedData<'a, L> = <L as Layout>::SharedData<'a>;
 

@@ -73,7 +73,7 @@ impl Camera {
 
     #[inline(always)]
     pub fn write_buffer(&self, render_context: &RenderContext) {
-        self.bind.uniform().write(render_context, self.uniform);
+        self.bind.uniform().write(render_context, &self.uniform);
     }
 }
 

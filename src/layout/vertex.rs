@@ -20,7 +20,14 @@ pub struct VertexAttrMarker<V: VertexAttr, const OFFSET: u32> {
 pub trait VertexRequirements: Debug + Clone {
     type Requirements: Debug + Clone;
 }
-pub type Requirements<V> = <V as VertexRequirements>::Requirements;
+pub type VRequirements<V> = <V as VertexRequirements>::Requirements;
+
+pub trait InstanceRequirements: Debug + Clone {
+    type Requirements: Debug + Clone;
+}
+pub type IRequirements<V> = <V as InstanceRequirements>::Requirements;
+
+pub auto trait NoInstanceRequirements {}
 
 impl<V: VertexAttr> VertexBufferLayout for V {
     const DESC: &'static [wgpu::VertexBufferLayout<'static>] =
@@ -98,7 +105,6 @@ pub mod create_vertex_layout {
             impl VertexRequirements for $L {
                 #[allow(unused_parens)]
                 type Requirements = ($($A),*);
-                type VertexBuffers = ($(create_vertex_layout::ignore_buffer!($A)),*);
             }
         };
 
@@ -113,6 +119,35 @@ pub mod create_vertex_layout {
         };
         ($L:ty: {$V:ty => Instance $(,$Vs:ty => $step_mode:ident)*} => ($($A:ty),*) for $count:expr) => {
             create_vertex_layout::vertex_req_inner!($L: {$($Vs => $step_mode),*} => ($($A),*) for { ($count + 1) });
+        };
+    }
+
+    #[allow(unused)]
+    #[macro_export]
+    macro_rules! instance_req_inner {
+        ($L:ty: {$($Vs:ty => Vertex),*} => for $count:expr) => {};
+        ($L:ty: {} => ($($A:ty),*) for $count:expr) => {
+            impl InstanceRequirements for $L {
+                #[allow(unused_parens)]
+                type Requirements = ($($A),*);
+            }
+
+            impl !NoInstanceRequirements for $L {}
+        };
+
+        ($L:ty: {$V:ty => Instance $(,$Vs:ty => Vertex)*} => ($($A:ty),*) for $count:expr) => {
+            impl InstanceRequirements for $L {
+                #[allow(unused_parens)]
+                type Requirements = ($($A,)*VertexAttrMarker<$V,$count>);
+            }
+
+            impl !NoInstanceRequirements for $L {}
+        };
+        ($L:ty: {$V:ty => Instance $(,$Vs:ty => $step_mode:ident)*} => ($($A:ty),*) for $count:expr) => {
+            create_vertex_layout::instance_req_inner!($L: {$($Vs => $step_mode),*} => ($($A,)* VertexAttrMarker<$V,$count>) for { ($count + 1) });
+        };
+        ($L:ty: {$V:ty => Vertex $(,$Vs:ty => $step_mode:ident)*} => ($($A:ty),*) for $count:expr) => {
+            create_vertex_layout::instance_req_inner!($L: {$($Vs => $step_mode),*} => ($($A),*) for { ($count + 1) });
         };
     }
 
@@ -182,10 +217,13 @@ pub mod create_vertex_layout {
             }
 
             create_vertex_layout::vertex_req_inner!($L: { $($V => $step_mode),* } => () for 0);
+
+            create_vertex_layout::instance_req_inner!($L: { $($V => $step_mode),* } => () for 0);
         }
     }
 
     pub use ignore_buffer;
+    pub use instance_req_inner;
     pub use layout;
     pub use layout_inner;
     pub use raw_layout;
@@ -194,24 +232,26 @@ pub mod create_vertex_layout {
 }
 
 #[cfg(test)]
-pub mod test {
+mod tests {
+    #![allow(unused)]
+
     use super::*;
 
     #[derive(Debug, Clone)]
-    pub struct Vertex {
-        pub pos: [f32; 3],
-        pub color: [f32; 4],
+    struct Vertex {
+        pos: [f32; 3],
+        color: [f32; 4],
     }
 
     #[derive(Debug, Clone)]
-    pub struct VertexExtra {
-        pub vibe: f32,
+    struct VertexExtra {
+        vibe: f32,
     }
 
     #[derive(Debug, Clone)]
-    pub struct Instance {
-        pub pos: [f32; 2],
-        pub rot: f32,
+    struct Instance {
+        pos: [f32; 2],
+        rot: f32,
     }
 
     create_vertex_attr::attr!(Vertex => [
@@ -241,6 +281,10 @@ pub mod test {
         );
     }
 
+    impl InstanceRequirements for RawVertexLayout {
+        type Requirements = VertexAttrMarker<Instance, 1>;
+    }
+
     create_vertex_layout::layout!(VertexLayout {
         Vertex => Vertex,
         Instance => Instance,
@@ -253,7 +297,10 @@ pub mod test {
     }
 
     // Compile time checks that it all generates correctly
-    fn _req(req: <RawVertexLayout as VertexRequirements>::Requirements) {
+    fn _v_req(req: <RawVertexLayout as VertexRequirements>::Requirements) {
         let _: <VertexLayout as VertexRequirements>::Requirements = req;
+    }
+    fn _i_req(req: <RawVertexLayout as InstanceRequirements>::Requirements) {
+        let _: <VertexLayout as InstanceRequirements>::Requirements = req;
     }
 }

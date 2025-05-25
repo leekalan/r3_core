@@ -1,6 +1,10 @@
-use std::ops::Range;
+use std::{mem::transmute, ops::Range};
 
-use crate::{prelude::*, surface::mesh::Mesh};
+use crate::{
+    layout::vertex::NoInstanceRequirements,
+    prelude::*,
+    surface::{mesh::Mesh, SurfaceInstanced},
+};
 
 #[derive(Default, Debug, Clone)]
 pub struct RenderContextConfig {
@@ -158,28 +162,37 @@ impl CommandEncoder<'_> {
 
 #[repr(transparent)]
 #[derive(Debug)]
-pub struct RenderPass<'r, Layout> {
+pub struct RenderPass<'r, Layout, const SHADER_ATTACHED: bool = false> {
     render_pass: wgpu::RenderPass<'r>,
     __layout: PhantomData<Layout>,
 }
 
-impl<'r, L> RenderPass<'r, L> {
+impl<'r, L, const SA: bool> RenderPass<'r, L, SA> {
     /// # Safety
     /// This function is unsafe because it allows the caller
     /// to mutate the inner `wgpu::RenderPass`
-    #[inline]
+    #[inline(always)]
     pub unsafe fn inner(&mut self) -> &mut wgpu::RenderPass<'r> {
         &mut self.render_pass
     }
 
     /// # Safety
-    /// This function is unsafe because it coerces the vertex type
-    #[inline]
-    pub unsafe fn coerce<NewLayout>(self) -> RenderPass<'r, NewLayout> {
+    /// This function is unsafe because it coerces the layout
+    #[inline(always)]
+    pub unsafe fn coerce<NewLayout, const NEW_SA: bool>(self) -> RenderPass<'r, NewLayout, NEW_SA> {
         RenderPass {
             render_pass: self.render_pass,
             __layout: PhantomData,
         }
+    }
+
+    /// # Safety
+    /// This function is unsafe because it coerces the layout
+    #[inline(always)]
+    pub unsafe fn coerce_ref<NewLayout, const NEW_SA: bool>(
+        &mut self,
+    ) -> &mut RenderPass<'r, NewLayout, NEW_SA> {
+        transmute::<&mut RenderPass<'r, L, SA>, &mut RenderPass<'r, NewLayout, NEW_SA>>(self)
     }
 
     #[inline(always)]
@@ -210,43 +223,218 @@ impl<'r, L> RenderPass<'r, L> {
 
         unsafe { self.coerce() }
     }
+}
+
+impl<'r, L: Layout, const SA: bool> RenderPass<'r, L, SA> {
+    #[inline]
+    pub fn apply_shader(mut self, handle: &ShaderHandle<L>) -> RenderPass<'r, L, true> {
+        handle.apply_shader(unsafe { self.inner() });
+
+        unsafe { self.coerce() }
+    }
 
     #[inline]
-    pub fn draw_screen_quad(&mut self) -> &mut Self {
+    pub fn apply_shader_ref(&mut self, handle: &ShaderHandle<L>) -> &mut RenderPass<'r, L, true> {
+        handle.apply_shader(unsafe { self.inner() });
+
+        unsafe { self.coerce_ref() }
+    }
+
+    pub fn set_instances<I: Instances<IRequirements<L::VertexLayout>>>(
+        mut self,
+        instances: &I,
+    ) -> RenderPassInstanced<'r, L, SA>
+    where
+        L::VertexLayout: InstanceRequirements,
+    {
+        unsafe { instances.set_vertex_buffers(self.inner()) };
+
+        RenderPassInstanced {
+            render_pass: self,
+            instances: instances.range(),
+        }
+    }
+
+    #[inline]
+    pub fn draw_surface<S: Surface<Layout = L>>(&mut self, surface: &S) -> &mut Self
+    where
+        L::VertexLayout: NoInstanceRequirements,
+    {
+        surface.draw(self);
+        self
+    }
+
+    /// # Safety
+    /// This function is unsafe because it is impossible to check
+    /// if the `instances` range is valid or even excpected
+    #[inline]
+    pub unsafe fn draw_instanced_mesh<M: Mesh<VRequirements<L::VertexLayout>>>(
+        &mut self,
+        mesh: &M,
+        instances: Range<u32>,
+    ) -> &mut Self {
+        unsafe { mesh.draw_instanced(self.inner(), instances) };
+        self
+    }
+
+    #[inline]
+    pub fn draw_screen_quad(&mut self) -> &mut Self
+    where
+        L::VertexLayout: VertexRequirements<Requirements = ()>,
+    {
         unsafe { self.inner() }.draw(0..3, 0..1);
 
         self
     }
 }
 
-impl<L: Layout> RenderPass<'_, L> {
+impl<'r, L: Layout> RenderPass<'r, L, false> {
+    /// # Safety
+    /// This function is unsafe because it is impossible to check
+    /// if a shader has been applied
     #[inline]
-    pub fn apply_shader(&mut self, handle: &ShaderHandle<L>) -> &mut Self {
-        let inner = unsafe { self.inner() };
-
-        handle.apply_shader(inner);
-
-        self
-    }
-
-    #[inline(always)]
-    pub fn draw_surface<S: Surface<Layout = L>>(&mut self, surface: &S) {
-        surface.draw(self);
-    }
-
-    #[inline]
-    pub fn draw_mesh<M: Mesh<Requirements<L::VertexLayout>>>(&mut self, mesh: &M) -> &mut Self {
+    pub unsafe fn draw_mesh<M: Mesh<VRequirements<L::VertexLayout>>>(
+        &mut self,
+        mesh: &M,
+    ) -> &mut Self
+    where
+        L::VertexLayout: NoInstanceRequirements,
+    {
         unsafe { mesh.draw(self.inner()) };
         self
     }
+}
+
+impl<'r, L: Layout> RenderPass<'r, L, true> {
+    #[inline]
+    pub fn draw_mesh<M: Mesh<VRequirements<L::VertexLayout>>>(&mut self, mesh: &M) -> &mut Self
+    where
+        L::VertexLayout: NoInstanceRequirements,
+    {
+        unsafe { mesh.draw(self.inner()) };
+        self
+    }
+}
+
+#[derive(Debug)]
+pub struct RenderPassInstanced<'r, L, const SA: bool = false> {
+    render_pass: RenderPass<'r, L, SA>,
+    instances: Range<u32>,
+}
+
+impl<'r, L, const SA: bool> RenderPassInstanced<'r, L, SA> {
+    /// # Safety
+    /// This function is unsafe because it coerces the layout
+    #[inline]
+    pub unsafe fn coerce<NewLayout, const NEW_SA: bool>(
+        self,
+    ) -> RenderPassInstanced<'r, NewLayout, NEW_SA> {
+        RenderPassInstanced {
+            render_pass: unsafe { self.render_pass.coerce() },
+            instances: self.instances.clone(),
+        }
+    }
+
+    /// # Safety
+    /// This function is unsafe because it coerces the layout
+    #[inline]
+    pub unsafe fn coerce_ref<NewLayout, const NEW_SA: bool>(
+        &mut self,
+    ) -> &mut RenderPassInstanced<'r, NewLayout, NEW_SA> {
+        unsafe {
+            transmute::<
+                &mut RenderPassInstanced<'r, L, SA>,
+                &mut RenderPassInstanced<'r, NewLayout, NEW_SA>,
+            >(self)
+        }
+    }
+
+    #[inline(always)]
+    pub fn wipe_instances(self) -> RenderPass<'r, L, SA> {
+        self.render_pass
+    }
+}
+
+impl<'r, L: Layout, const SA: bool> RenderPassInstanced<'r, L, SA>
+where
+    L::VertexLayout: InstanceRequirements,
+{
+    #[inline]
+    pub fn apply_shader(mut self, handle: &ShaderHandle<L>) -> RenderPassInstanced<'r, L, true> {
+        handle.apply_shader(unsafe { self.render_pass.inner() });
+
+        unsafe { self.coerce() }
+    }
 
     #[inline]
-    pub fn draw_instanced_mesh<M: Mesh<Requirements<L::VertexLayout>>>(
+    pub fn apply_shader_ref(
+        &mut self,
+        handle: &ShaderHandle<L>,
+    ) -> &mut RenderPassInstanced<'r, L, true> {
+        handle.apply_shader(unsafe { self.render_pass.inner() });
+
+        unsafe { self.coerce_ref() }
+    }
+
+    #[inline]
+    pub fn set_shared_data<NewLayout: Layout>(
+        self,
+        shared_data: SharedData<NewLayout>,
+    ) -> RenderPassInstanced<'r, NewLayout>
+    where
+        VertexLayout<NewLayout>:
+            InstanceRequirements<Requirements = IRequirements<L::VertexLayout>>,
+    {
+        RenderPassInstanced {
+            render_pass: self.render_pass.set_shared_data(shared_data),
+            instances: self.instances,
+        }
+    }
+
+    #[inline]
+    pub fn create_shared_data<NewLayout: Layout>(self) -> RenderPassInstanced<'r, NewLayout>
+    where
+        VertexLayout<NewLayout>:
+            InstanceRequirements<Requirements = IRequirements<L::VertexLayout>>,
+        for<'a> SharedData<'a, NewLayout>: Default,
+    {
+        RenderPassInstanced {
+            render_pass: self.render_pass.create_shared_data(),
+            instances: self.instances,
+        }
+    }
+
+    #[inline]
+    pub fn draw_surface<S: SurfaceInstanced<Layout = L>>(&mut self, surface: &S) -> &mut Self {
+        surface.draw(self);
+        self
+    }
+}
+
+impl<'r, L: Layout> RenderPassInstanced<'r, L, false>
+where
+    L::VertexLayout: InstanceRequirements,
+{
+    /// # Safety
+    /// This function is unsafe because it is impossible to check
+    /// if a shader has been applied
+    #[inline]
+    pub unsafe fn draw_mesh<M: Mesh<VRequirements<L::VertexLayout>>>(
         &mut self,
         mesh: &M,
-        instances: Range<u32>,
     ) -> &mut Self {
-        unsafe { mesh.draw_instanced(self.inner(), instances) };
+        unsafe { mesh.draw_instanced(self.render_pass.inner(), self.instances.clone()) };
+        self
+    }
+}
+
+impl<'r, L: Layout> RenderPassInstanced<'r, L, true>
+where
+    L::VertexLayout: InstanceRequirements,
+{
+    #[inline]
+    pub fn draw_mesh<M: Mesh<VRequirements<L::VertexLayout>>>(&mut self, mesh: &M) -> &mut Self {
+        unsafe { mesh.draw_instanced(self.render_pass.inner(), self.instances.clone()) };
         self
     }
 }

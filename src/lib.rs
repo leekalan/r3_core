@@ -1,13 +1,21 @@
-#![feature(associated_type_defaults)]
+#![feature(associated_type_defaults, negative_impls, auto_traits)]
 
-pub mod handler;
-pub mod render_context;
+pub(crate) mod handler;
+pub(crate) mod render_context;
 
-pub mod bind;
-pub mod layout;
-pub mod surface;
-pub mod texture;
+pub(crate) mod bind;
+pub(crate) mod layout;
+pub(crate) mod surface;
+pub(crate) mod texture;
+
+#[cfg(feature = "ecs")]
+pub(crate) mod ecs;
 
 pub mod prelude;
 
-pub mod core;
+pub(crate) mod core;
+
+pub use bytemuck;
+pub use tokio;
+pub use wgpu;
+pub use winit;

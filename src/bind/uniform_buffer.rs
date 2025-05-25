@@ -1,13 +1,15 @@
+use std::slice;
+
 use crate::prelude::*;
 
 #[repr(transparent)]
 #[derive(Clone, Debug)]
-pub struct UniformBuffer<T: 'static + Copy + bytemuck::Pod + bytemuck::Zeroable> {
+pub struct UniformBuffer<T: ?Sized + 'static> {
     buffer: wgpu::Buffer,
-    _marker: PhantomData<&'static mut T>,
+    _marker: PhantomData<T>,
 }
 
-impl<T: 'static + Copy + bytemuck::Pod + bytemuck::Zeroable> UniformBuffer<T> {
+impl<T: 'static> UniformBuffer<T> {
     #[inline]
     pub fn new(render_context: &RenderContext) -> Self {
         let device = unsafe { render_context.device() };
@@ -18,30 +20,6 @@ impl<T: 'static + Copy + bytemuck::Pod + bytemuck::Zeroable> UniformBuffer<T> {
             size: size_of::<T>() as u64,
             mapped_at_creation: false,
         });
-
-        Self {
-            buffer,
-            _marker: PhantomData,
-        }
-    }
-
-    #[inline]
-    pub fn new_init(render_context: &RenderContext, value: T) -> Self {
-        let device = unsafe { render_context.device() };
-
-        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: None,
-            size: size_of::<T>() as u64,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            mapped_at_creation: true,
-        });
-
-        buffer
-            .slice(..)
-            .get_mapped_range_mut()
-            .copy_from_slice(bytemuck::cast_slice(&[value]));
-
-        buffer.unmap();
 
         Self {
             buffer,
@@ -70,11 +48,44 @@ impl<T: 'static + Copy + bytemuck::Pod + bytemuck::Zeroable> UniformBuffer<T> {
         }
     }
 
+    /// # Safety
+    /// This function is unsafe because it returns the inner `wgpu::Buffer`
+    #[inline(always)]
+    pub unsafe fn wgpu_buffer(&self) -> &wgpu::Buffer {
+        &self.buffer
+    }
+}
+
+impl<T: 'static + bytemuck::Pod> UniformBuffer<T> {
+    #[inline]
+    pub fn new_init(render_context: &RenderContext, value: &T) -> Self {
+        let device = unsafe { render_context.device() };
+
+        let buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: None,
+            size: size_of::<T>() as u64,
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: true,
+        });
+
+        buffer
+            .slice(..)
+            .get_mapped_range_mut()
+            .copy_from_slice(bytemuck::cast_slice(slice::from_ref(value)));
+
+        buffer.unmap();
+
+        Self {
+            buffer,
+            _marker: PhantomData,
+        }
+    }
+
     #[inline]
     pub fn init_with_usage(
         render_context: &RenderContext,
         usage: wgpu::BufferUsages,
-        value: T,
+        value: &T,
     ) -> Self {
         let device = unsafe { render_context.device() };
 
@@ -88,7 +99,7 @@ impl<T: 'static + Copy + bytemuck::Pod + bytemuck::Zeroable> UniformBuffer<T> {
         buffer
             .slice(..)
             .get_mapped_range_mut()
-            .copy_from_slice(bytemuck::cast_slice(&[value]));
+            .copy_from_slice(bytemuck::cast_slice(slice::from_ref(value)));
 
         buffer.unmap();
 
@@ -98,17 +109,14 @@ impl<T: 'static + Copy + bytemuck::Pod + bytemuck::Zeroable> UniformBuffer<T> {
         }
     }
 
-    /// # Safety
-    /// This function is unsafe because it returns the inner `wgpu::Buffer`
-    #[inline(always)]
-    pub unsafe fn wgpu_buffer(&self) -> &wgpu::Buffer {
-        &self.buffer
-    }
-
     #[inline]
-    pub fn write(&self, render_context: &RenderContext, value: T) {
+    pub fn write(&self, render_context: &RenderContext, value: &T) {
         let queue = unsafe { render_context.queue() };
 
-        queue.write_buffer(&self.buffer, 0, bytemuck::cast_slice(&[value]));
+        queue.write_buffer(
+            &self.buffer,
+            0,
+            bytemuck::cast_slice(slice::from_ref(value)),
+        );
     }
 }

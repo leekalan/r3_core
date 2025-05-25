@@ -1,7 +1,4 @@
-use r3_core::{
-    handler::EventResult,
-    prelude::{core::*, *},
-};
+use r3_core::prelude::{core::*, *};
 
 use cgmath::Vector3;
 

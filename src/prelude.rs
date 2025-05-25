@@ -12,24 +12,31 @@ pub use crate::{
             ApplyComputeShaderInstance, ComputeShader, ComputeShaderHandle, ComputeShaderInstance,
             DefaultComputeShaderInstance, StaticComputeShaderInstance,
         },
+        instances::{
+            Instances, SimpleInstances, SimpleInstances2, SimpleInstances3, SimpleInstances4,
+            SimpleInstances5,
+        },
         shader::{
             ApplyShaderInstance, DefaultShaderInstance, Shader, ShaderHandle, ShaderInstance,
             StaticShaderInstance,
         },
         vertex::{
-            create_vertex_attr, create_vertex_layout, Requirements, VertexAttr, VertexAttrMarker,
+            create_vertex_attr, create_vertex_layout, IRequirements, InstanceRequirements,
+            NoInstanceRequirements, VRequirements, VertexAttr, VertexAttrMarker,
             VertexBufferLayout, VertexRequirements,
         },
         ComputeLayout, ComputeLayoutConfig, CreateComputePipeline, CreatePipeline, Layout,
         LayoutConfig, RawLayout, ShaderConfig, SharedComputeData, SharedData, VertexLayout,
     },
-    render_context::{CommandEncoder, RenderContext, RenderContextConfig, RenderPass},
+    render_context::{
+        CommandEncoder, RenderContext, RenderContextConfig, RenderPass, RenderPassInstanced,
+    },
     surface::{
         mesh::{
             index_format, Mesh, SimpleMesh, SimpleMesh0, SimpleMesh2, SimpleMesh3, SimpleMesh4,
             SimpleMesh5,
         },
-        Surface,
+        Surface, SurfaceInstanced,
     },
     texture::{
         RawTexture, RawTextureView, Sampler, SamplerConfig, Texture, Texture1D, Texture2D,
@@ -55,9 +62,10 @@ pub mod core {
         camera::{Camera, CameraBind, CameraBindLayout, CameraUniform, Projection},
         camera_2d::{Camera2d, Projection2d},
         grounded_camera::GroundedCamera,
+        hdr::{CommandEncoderHdr, Hdr, WindowCommandEncoderHdr},
         post_processing::{PostProc, PostProcBind, PostProcBindLayout},
         surface::ShadedMesh,
-        tileset::{TilesetMesh, TilesetQuad},
+        tileset::TilesetQuad,
         transform::{Transform, Transform2d},
         vertex::{PosVertex, PosVertex2d, RBGAVertex, RGBVertex, UVVertex},
     };
