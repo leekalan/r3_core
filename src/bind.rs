@@ -1,4 +1,5 @@
 pub mod dynamic_buffer;
+pub mod storage_buffer;
 pub mod uniform_buffer;
 
 pub trait Bind {
@@ -27,6 +28,12 @@ pub mod create_bind {
         ($bind:ident, $bind_layout:ident {
             $(UniformBuffers => {
                 $($buffer:ident: $ty:ty => $binding:literal for $visibility:ident,)*
+            },)?
+            $(StorageBuffers => {
+                $($sbuffer:ident: $sty:ty => $sbinding:literal for $svisibility:ident,)*
+            },)?
+            $(DynamicBuffers => {
+                $($dbuffer:ident: $dty:ty => $dbinding:literal for $dvisibility:ident,)*
             },)?
             $(Textures => {
                 $($texture:ident: $DIMENSION:ty $(| for $t_count:literal)? => $t_binding:literal for $t_visibility:ident,)*
@@ -59,6 +66,34 @@ pub mod create_bind {
                                     ty: wgpu::BindingType::Buffer {
                                         ty: wgpu::BufferBindingType::Uniform,
                                         has_dynamic_offset: false,
+                                        min_binding_size: None,
+                                    },
+                                    count: None,
+                                },
+                            )*)?
+                            $($(
+                                wgpu::BindGroupLayoutEntry {
+                                    binding: $sbinding,
+                                    visibility: wgpu::ShaderStages::$svisibility,
+                                    ty: wgpu::BindingType::Buffer {
+                                        ty: wgpu::BufferBindingType::Storage {
+                                            read_only: true
+                                        },
+                                        has_dynamic_offset: false,
+                                        min_binding_size: None,
+                                    },
+                                    count: None,
+                                },
+                            )*)?
+                            $($(
+                                wgpu::BindGroupLayoutEntry {
+                                    binding: $dbinding,
+                                    visibility: wgpu::ShaderStages::$dvisibility,
+                                    ty: wgpu::BindingType::Buffer {
+                                        ty: wgpu::BufferBindingType::Storage {
+                                            read_only: false
+                                        },
+                                        has_dynamic_offset: true,
                                         min_binding_size: None,
                                     },
                                     count: None,
@@ -115,6 +150,12 @@ pub mod create_bind {
                     pub $buffer: UniformBuffer<$ty>,
                 )*)?
                 $($(
+                    pub $sbuffer: StorageBuffer<$sty>,
+                )*)?
+                $($(
+                    pub $dbuffer: DynamicBuffer<$dty>,
+                )*)?
+                $($(
                     pub $texture: RawTexture<$DIMENSION>,
                 )*)?
                 $($(
@@ -141,6 +182,12 @@ pub mod create_bind {
                         $buffer: UniformBuffer<$ty>,
                     )*)?
                     $($(
+                        $sbuffer: StorageBuffer<$sty>,
+                    )*)?
+                    $($(
+                        $dbuffer: DynamicBuffer<$dty>,
+                    )?)?
+                    $($(
                         $texture: RawTexture<$DIMENSION>,
                     )*)?
                     $($(
@@ -156,6 +203,18 @@ pub mod create_bind {
                                 wgpu::BindGroupEntry {
                                     binding: $binding,
                                     resource: unsafe { $buffer.wgpu_buffer() }.as_entire_binding(),
+                                }
+                            ,)*)?
+                            $($(
+                                wgpu::BindGroupEntry {
+                                    binding: $sbinding,
+                                    resource: unsafe { $sbuffer.wgpu_buffer() }.as_entire_binding(),
+                                }
+                            ,)*)?
+                            $($(
+                                wgpu::BindGroupEntry {
+                                    binding: $dbinding,
+                                    resource: unsafe { $dbuffer.wgpu_buffer() }.as_entire_binding(),
                                 }
                             ,)*)?
                             $($(
@@ -184,6 +243,12 @@ pub mod create_bind {
                         $($(
                             $buffer,
                         )*)?
+                        $($(
+                            $sbuffer,
+                        )*)?
+                        $($(
+                            $dbuffer,
+                        )?)?
                         $($(
                             $texture,
                         )*)?
@@ -278,6 +343,12 @@ mod bind_tests {
             width: f32 => 0 for VERTEX,
             height: f32 => 1 for VERTEX,
         },
+        StorageBuffers => {
+            a: f32 => 2 for FRAGMENT,
+        },
+        DynamicBuffers => {
+            b: f32 => 3 for FRAGMENT,
+        },
     });
 
     #[tokio::test]
@@ -291,6 +362,12 @@ mod bind_tests {
             bind_layout,
             UniformBuffer::new_init(&render_context, &0.0),
             UniformBuffer::new_init(&render_context, &0.0),
+            StorageBuffer::new_init(&render_context, &[0.0, 1.0, 2.0]),
+            DynamicBuffer::new_init(
+                &render_context,
+                &[0.0, 1.0, 2.0],
+                std::num::NonZeroU64::new(4),
+            ),
         );
 
         drop(bind);

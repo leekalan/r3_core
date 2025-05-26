@@ -3,53 +3,44 @@ use std::{mem, num::NonZeroU64, slice};
 use crate::prelude::*;
 
 #[derive(Clone, Debug)]
-pub struct DynamicBuffer<T: 'static> {
+pub struct StorageBuffer<T: 'static> {
     buffer: wgpu::Buffer,
-    size: u64,
+    size: NonZeroU64,
     _marker: PhantomData<T>,
 }
 
-impl<T: 'static> DynamicBuffer<T> {
+impl<T: 'static> StorageBuffer<T> {
     #[inline]
-    pub fn new(render_context: &RenderContext, max_size: NonZeroU64) -> Self {
+    pub fn new(render_context: &RenderContext, size: NonZeroU64) -> Self {
         let device = unsafe { render_context.device() };
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-            size: mem::size_of::<T>() as u64 * max_size.get(),
+            size: mem::size_of::<T>() as u64 * size.get(),
             mapped_at_creation: false,
         });
 
         Self {
-            size: 0,
+            size,
             buffer,
             _marker: PhantomData,
         }
     }
 
     #[inline]
-    pub fn new_init(
-        render_context: &RenderContext,
-        value: &[T],
-        max_size: Option<NonZeroU64>,
-    ) -> Self
+    pub fn new_init(render_context: &RenderContext, value: &[T]) -> Self
     where
         T: bytemuck::NoUninit,
     {
-        let size = match max_size {
-            Some(size) => size.get(),
-            None => value.len() as u64,
-        };
-
-        assert!(value.len() as u64 <= size);
+        let size = NonZeroU64::new(value.len() as u64).expect("storage buffer size cannot be zero");
 
         let device = unsafe { render_context.device() };
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
-            size: mem::size_of::<T>() as u64 * size,
+            size: mem::size_of::<T>() as u64 * size.get(),
             mapped_at_creation: true,
         });
 
@@ -61,7 +52,7 @@ impl<T: 'static> DynamicBuffer<T> {
         buffer.unmap();
 
         Self {
-            size: value.len() as u64,
+            size,
             buffer,
             _marker: PhantomData,
         }
@@ -70,7 +61,7 @@ impl<T: 'static> DynamicBuffer<T> {
     #[inline]
     pub fn with_usage(
         render_context: &RenderContext,
-        max_size: NonZeroU64,
+        size: NonZeroU64,
         usage: wgpu::BufferUsages,
         mapped_at_creation: bool,
     ) -> Self {
@@ -79,40 +70,33 @@ impl<T: 'static> DynamicBuffer<T> {
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             usage: wgpu::BufferUsages::STORAGE | usage,
-            size: mem::size_of::<T>() as u64 * max_size.get(),
+            size: mem::size_of::<T>() as u64 * size.get(),
             mapped_at_creation,
         });
 
         Self {
-            size: 0,
+            size,
             buffer,
             _marker: PhantomData,
         }
     }
 
-    #[inline]
     pub fn with_usage_init(
         render_context: &RenderContext,
         value: &[T],
-        max_size: Option<NonZeroU64>,
         usage: wgpu::BufferUsages,
     ) -> Self
     where
         T: bytemuck::NoUninit,
     {
-        let size = match max_size {
-            Some(size) => size.get(),
-            None => value.len() as u64,
-        };
-
-        assert!(value.len() as u64 <= size);
+        let size = NonZeroU64::new(value.len() as u64).expect("storage buffer size cannot be zero");
 
         let device = unsafe { render_context.device() };
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
             usage: wgpu::BufferUsages::STORAGE | usage,
-            size: mem::size_of::<T>() as u64 * size,
+            size: mem::size_of::<T>() as u64 * size.get(),
             mapped_at_creation: true,
         });
 
@@ -124,7 +108,7 @@ impl<T: 'static> DynamicBuffer<T> {
         buffer.unmap();
 
         Self {
-            size: value.len() as u64,
+            size,
             buffer,
             _marker: PhantomData,
         }
@@ -138,13 +122,8 @@ impl<T: 'static> DynamicBuffer<T> {
     }
 
     #[inline(always)]
-    pub const fn size(&self) -> u64 {
+    pub fn size(&self) -> NonZeroU64 {
         self.size
-    }
-
-    #[inline(always)]
-    pub fn max_size(&self) -> u64 {
-        self.buffer.size() / mem::size_of::<T>() as u64
     }
 
     /// # Safety
@@ -154,15 +133,8 @@ impl<T: 'static> DynamicBuffer<T> {
         &self.buffer
     }
 
-    /// # Safety
-    /// This function is unsafe because it returns the inner `wgpu::Buffer` as a slice
     #[inline(always)]
-    pub unsafe fn wgpu_slice(&self) -> wgpu::BufferSlice {
-        self.buffer.slice(..mem::size_of::<T>() as u64 * self.size)
-    }
-
-    #[inline(always)]
-    pub fn write(&mut self, render_context: &RenderContext, data: &[T])
+    pub fn write(&self, render_context: &RenderContext, data: &[T])
     where
         T: bytemuck::NoUninit,
     {
@@ -170,16 +142,16 @@ impl<T: 'static> DynamicBuffer<T> {
     }
 
     #[inline]
-    pub fn write_at_offset(&mut self, render_context: &RenderContext, data: &[T], offset: u64)
+    pub fn write_at_offset(&self, render_context: &RenderContext, data: &[T], offset: u64)
     where
         T: bytemuck::NoUninit,
     {
-        if offset + data.len() as u64 > self.max_size() {
+        if offset + data.len() as u64 > self.size.get() {
             panic!(
-                "offset ({}) + data len ({}) larger than max size ({})",
+                "offset ({}) + data len ({}) larger than buffer size ({})",
                 offset,
                 data.len(),
-                self.max_size()
+                self.size.get()
             );
         }
 
@@ -190,7 +162,7 @@ impl<T: 'static> DynamicBuffer<T> {
     /// This may make an unsafe memory access
     #[inline]
     pub unsafe fn write_at_offset_unchecked(
-        &mut self,
+        &self,
         render_context: &RenderContext,
         data: &[T],
         offset: u64,
@@ -198,8 +170,6 @@ impl<T: 'static> DynamicBuffer<T> {
         T: bytemuck::NoUninit,
     {
         let queue = unsafe { render_context.queue() };
-
-        self.size = offset + data.len() as u64;
 
         queue.write_buffer(
             &self.buffer,
@@ -213,11 +183,11 @@ impl<T: 'static> DynamicBuffer<T> {
     where
         T: bytemuck::NoUninit,
     {
-        if offset >= self.size() {
+        if offset >= self.size.get() {
             panic!(
-                "offset ({}) larger than or equal to current size ({})",
+                "offset ({}) larger than or equal to buffer size ({})",
                 offset,
-                self.size()
+                self.size.get()
             );
         }
 

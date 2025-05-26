@@ -1,6 +1,7 @@
 pub use crate::{
     bind::{
-        create_bind, dynamic_buffer::DynamicBuffer, uniform_buffer::UniformBuffer, Bind, BindLayout,
+        create_bind, dynamic_buffer::DynamicBuffer, storage_buffer::StorageBuffer,
+        uniform_buffer::UniformBuffer, Bind, BindLayout,
     },
     handler::{
         app::{App, AppConfig},

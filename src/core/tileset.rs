@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use crate::prelude::{core::*, *};
 
 #[repr(C)]
@@ -35,6 +37,15 @@ impl TilesetQuad {
 
     #[inline(always)]
     pub fn inner(&self) -> &SimpleMesh<PosVertex2d, index_format::Uint16> {
+        &self.0
+    }
+}
+
+impl Deref for TilesetQuad {
+    type Target = SimpleMesh<PosVertex2d, index_format::Uint16>;
+
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target {
         &self.0
     }
 }

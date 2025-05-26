@@ -49,6 +49,13 @@ impl<T: 'static> UniformBuffer<T> {
     }
 
     /// # Safety
+    /// This function is unsafe because the buffer may not be mapped
+    #[inline(always)]
+    pub unsafe fn unmap(&mut self) {
+        self.buffer.unmap();
+    }
+
+    /// # Safety
     /// This function is unsafe because it returns the inner `wgpu::Buffer`
     #[inline(always)]
     pub unsafe fn wgpu_buffer(&self) -> &wgpu::Buffer {
@@ -56,7 +63,7 @@ impl<T: 'static> UniformBuffer<T> {
     }
 }
 
-impl<T: 'static + bytemuck::Pod> UniformBuffer<T> {
+impl<T: 'static + bytemuck::NoUninit> UniformBuffer<T> {
     #[inline]
     pub fn new_init(render_context: &RenderContext, value: &T) -> Self {
         let device = unsafe { render_context.device() };
