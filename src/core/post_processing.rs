@@ -46,10 +46,7 @@ impl PostProc {
                     ..default()
                 },
             ),
-            Sampler::new(
-                render_context,
-                &wgpu::SamplerDescriptor::default(),
-            ),
+            Sampler::new(render_context, &wgpu::SamplerDescriptor::default()),
         );
 
         Self {

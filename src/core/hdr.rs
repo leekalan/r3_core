@@ -22,7 +22,8 @@ impl Hdr {
                 },
                 &TextureConfig {
                     usages: Some(
-                        wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+                        wgpu::TextureUsages::RENDER_ATTACHMENT
+                            | wgpu::TextureUsages::TEXTURE_BINDING,
                     ),
                     format: Some(Self::TEXTURE_FORMAT),
                     ..default()
@@ -33,8 +34,8 @@ impl Hdr {
                 &wgpu::SamplerDescriptor {
                     mag_filter: wgpu::FilterMode::Nearest,
                     ..default()
-                }
-            )
+                },
+            ),
         );
 
         Self {

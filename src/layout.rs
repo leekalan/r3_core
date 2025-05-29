@@ -204,7 +204,6 @@ pub struct ComputeLayoutConfig<'a> {
     pub bind_group_layouts: &'a [&'a wgpu::BindGroupLayout],
 }
 
-
 impl RawComputeLayout {
     fn layout(&self) -> &wgpu::PipelineLayout {
         &self.pipeline_layout

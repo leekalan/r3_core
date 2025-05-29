@@ -41,8 +41,8 @@ pub use crate::{
         Surface, SurfaceInstanced,
     },
     texture::{
-        RawTexture, RawTextureView, Sampler, Texture, Texture1D, Texture2D,
-        Texture3D, TextureConfig,
+        RawTexture, RawTextureView, Sampler, Texture, Texture1D, Texture2D, Texture3D,
+        TextureConfig,
     },
 };
 
