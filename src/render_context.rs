@@ -497,14 +497,17 @@ impl<'r, L> ComputePass<'r, L> {
 
 impl<L: ComputeLayout> ComputePass<'_, L> {
     #[inline]
-    pub fn apply_compute_shader(&mut self, handle: &ComputeShaderHandle<L>) {
+    pub fn apply_compute_shader(&mut self, handle: &ComputeShaderHandle<L>) -> &mut Self {
         let inner = unsafe { self.inner() };
 
         handle.apply_compute_shader(inner);
+
+        self
     }
 
     #[inline]
-    pub fn dispatch_workgroups(&mut self, x: u32, y: u32, z: u32) {
+    pub fn dispatch_workgroups(&mut self, x: u32, y: u32, z: u32) -> &mut Self {
         unsafe { self.inner() }.dispatch_workgroups(x, y, z);
+        self
     }
 }

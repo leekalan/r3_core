@@ -1,7 +1,6 @@
 use std::ops::Deref;
 
 use crate::prelude::*;
-use image::GenericImageView;
 
 #[derive(Debug, Clone)]
 pub struct Texture<DIMENSION: TextureDimension = Texture2D> {
@@ -38,77 +37,9 @@ use texture_dimension::TextureDimension;
 pub use texture_dimension::{Texture1D, Texture2D, Texture3D};
 
 impl<DIMENSION: TextureDimension> Texture<DIMENSION> {
-    /// # Safety
-    /// This function is unsafe because the sampler may conflict with the texture
     #[inline(always)]
-    pub unsafe fn from_raw(texture: RawTexture<DIMENSION>, sampler: Sampler) -> Self {
+    pub fn new(texture: RawTexture<DIMENSION>, sampler: Sampler) -> Self {
         Self { texture, sampler }
-    }
-
-    /// # Safety
-    /// This function is unsafe because it has no checks for anything
-    pub unsafe fn from_bytes(
-        render_context: &RenderContext,
-        bytes: &[u8],
-        sampler_cfg: SamplerConfig,
-    ) -> Self {
-        let img = image::load_from_memory(bytes).unwrap();
-        Self::from_image(render_context, &img, sampler_cfg)
-    }
-
-    #[inline(always)]
-    pub fn new(
-        render_context: &RenderContext,
-        size: wgpu::Extent3d,
-        texture_cfg: TextureConfig<DIMENSION>,
-        sampler_cfg: &SamplerConfig,
-    ) -> Self {
-        let texture = RawTexture::new(render_context, size, texture_cfg);
-
-        let sampler = Sampler::new(render_context, sampler_cfg);
-
-        Self { texture, sampler }
-    }
-
-    pub fn from_image(
-        render_context: &RenderContext,
-        img: &image::DynamicImage,
-        sampler_cfg: SamplerConfig,
-    ) -> Self {
-        let rgba = img.to_rgba8();
-        let dimensions = img.dimensions();
-
-        let size = wgpu::Extent3d {
-            width: dimensions.0,
-            height: dimensions.1,
-            depth_or_array_layers: 1,
-        };
-
-        let texture = Self::new(
-            render_context,
-            size,
-            TextureConfig::<DIMENSION>::default(),
-            &sampler_cfg,
-        );
-
-        let queue = unsafe { render_context.queue() };
-        queue.write_texture(
-            wgpu::TexelCopyTextureInfoBase {
-                aspect: wgpu::TextureAspect::All,
-                texture: unsafe { texture.texture.inner() },
-                mip_level: 0,
-                origin: wgpu::Origin3d::ZERO,
-            },
-            &rgba,
-            wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(4 * dimensions.0),
-                rows_per_image: Some(dimensions.1),
-            },
-            size,
-        );
-
-        texture
     }
 }
 
@@ -126,14 +57,14 @@ impl Texture<Texture2D> {
         };
         let cfg = TextureConfig::<Texture2D> {
             label: Some("Depth Texture"),
-            usage: Some(
+            usages: Some(
                 wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
             ),
             format: Some(Self::DEPTH_FORMAT),
             ..Default::default()
         };
 
-        let sampler_config = SamplerConfig::Create(wgpu::SamplerDescriptor {
+        let sampler_config = wgpu::SamplerDescriptor {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
@@ -144,9 +75,12 @@ impl Texture<Texture2D> {
             lod_min_clamp: 0.0,
             lod_max_clamp: 100.0,
             ..Default::default()
-        });
+        };
 
-        Self::new(render_context, size, cfg, &sampler_config)
+        let raw_texture = RawTexture::new(render_context, size, &cfg);
+        let sampler = Sampler::new(render_context, &sampler_config);
+
+        Self::new(raw_texture, sampler)
     }
 }
 
@@ -165,7 +99,7 @@ pub struct TextureConfig<'a, DIMENSION: TextureDimension = Texture2D> {
     pub sample_count: Option<u32>,
     pub __dimension: PhantomData<DIMENSION>,
     pub format: Option<wgpu::TextureFormat>,
-    pub usage: Option<wgpu::TextureUsages>,
+    pub usages: Option<wgpu::TextureUsages>,
     pub view_formats: Option<Box<[wgpu::TextureFormat]>>,
 }
 
@@ -173,9 +107,12 @@ impl<DIMENSION: TextureDimension> RawTexture<DIMENSION> {
     pub fn new(
         render_context: &RenderContext,
         size: wgpu::Extent3d,
-        cfg: TextureConfig<DIMENSION>,
+        cfg: &TextureConfig<DIMENSION>,
     ) -> Self {
-        let view_formats = cfg.view_formats.unwrap_or(vec![].into_boxed_slice());
+        let view_formats = cfg
+            .view_formats
+            .clone()
+            .unwrap_or(vec![].into_boxed_slice());
 
         let texture_desc = wgpu::TextureDescriptor {
             label: cfg.label,
@@ -184,20 +121,25 @@ impl<DIMENSION: TextureDimension> RawTexture<DIMENSION> {
             sample_count: cfg.sample_count.unwrap_or(1),
             dimension: DIMENSION::DIMENSION,
             format: cfg.format.unwrap_or(wgpu::TextureFormat::Bgra8UnormSrgb),
-            usage: cfg.usage.unwrap_or(wgpu::TextureUsages::TEXTURE_BINDING),
+            usage: cfg
+                .usages
+                .unwrap_or(wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST),
             view_formats: &view_formats,
         };
 
         let texture = unsafe { render_context.device().create_texture(&texture_desc) };
 
-        let view = texture.create_view(&wgpu::TextureViewDescriptor {
-            label: cfg.label,
-            format: cfg.format,
-            dimension: Some(DIMENSION::VIEW_DIMENSION),
-            usage: Some(cfg.usage.unwrap_or(wgpu::TextureUsages::TEXTURE_BINDING)),
-            mip_level_count: Some(cfg.mip_level_count.unwrap_or(1)),
-            ..default()
-        });
+        let view =
+            texture.create_view(&wgpu::TextureViewDescriptor {
+                label: cfg.label,
+                format: cfg.format,
+                dimension: Some(DIMENSION::VIEW_DIMENSION),
+                usage: Some(cfg.usages.unwrap_or(
+                    wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                )),
+                mip_level_count: Some(cfg.mip_level_count.unwrap_or(1)),
+                ..default()
+            });
         let view = unsafe { RawTextureView::new(view) };
 
         Self {
@@ -206,6 +148,47 @@ impl<DIMENSION: TextureDimension> RawTexture<DIMENSION> {
             view_formats,
             __dimension: PhantomData,
         }
+    }
+
+    #[inline(always)]
+    pub fn from_data(
+        render_context: &RenderContext,
+        data: &[u8],
+        size: wgpu::Extent3d,
+        bytes_per_pixel: Option<u8>,
+        cfg: &TextureConfig<DIMENSION>,
+    ) -> Self {
+        let texture = Self::new(render_context, size, cfg);
+
+        texture.write_data(render_context, data, size, bytes_per_pixel);
+
+        texture
+    }
+
+    pub fn write_data(
+        &self,
+        render_context: &RenderContext,
+        data: &[u8],
+        size: wgpu::Extent3d,
+        bytes_per_pixel: Option<u8>,
+    ) {
+        let queue = unsafe { render_context.queue() };
+
+        queue.write_texture(
+            wgpu::TexelCopyTextureInfoBase {
+                aspect: wgpu::TextureAspect::All,
+                texture: unsafe { self.inner() },
+                mip_level: 0,
+                origin: wgpu::Origin3d::ZERO,
+            },
+            data,
+            wgpu::TexelCopyBufferLayout {
+                offset: 0,
+                bytes_per_row: Some(bytes_per_pixel.unwrap_or(4) as u32 * size.width),
+                rows_per_image: Some(size.height),
+            },
+            size,
+        );
     }
 
     pub fn resize(
@@ -311,42 +294,17 @@ pub struct Sampler {
     sampler: wgpu::Sampler,
 }
 
-#[derive(Debug, Clone)]
-pub enum SamplerConfig<'a> {
-    Create(wgpu::SamplerDescriptor<'a>),
-    Clone(&'a wgpu::Sampler),
-}
-impl SamplerConfig<'_> {
-    pub fn unwrap(&self, render_context: &RenderContext) -> wgpu::Sampler {
-        match self {
-            SamplerConfig::Create(cfg) => unsafe { render_context.device().create_sampler(cfg) },
-            SamplerConfig::Clone(sampler) => (*sampler).clone(),
-        }
-    }
-}
-impl Default for SamplerConfig<'static> {
-    fn default() -> Self {
-        Self::Create(wgpu::SamplerDescriptor {
-            address_mode_u: wgpu::AddressMode::ClampToEdge,
-            address_mode_v: wgpu::AddressMode::ClampToEdge,
-            address_mode_w: wgpu::AddressMode::ClampToEdge,
-            mag_filter: wgpu::FilterMode::Linear,
-            min_filter: wgpu::FilterMode::Nearest,
-            mipmap_filter: wgpu::FilterMode::Nearest,
-            ..Default::default()
-        })
-    }
-}
-
 impl Sampler {
-    pub fn new(render_context: &RenderContext, cfg: &SamplerConfig) -> Self {
+    /// #[inline(always)]
+    pub fn new(render_context: &RenderContext, cfg: &wgpu::SamplerDescriptor) -> Self {
         Self {
-            sampler: cfg.unwrap(render_context),
+            sampler: unsafe { render_context.device().create_sampler(cfg) },
         }
     }
 
     /// # Safety
     /// This function is unsafe because it returns the inner `wgpu::Sampler`
+    /// #[inline(always)]
     pub const unsafe fn inner(&self) -> &wgpu::Sampler {
         &self.sampler
     }

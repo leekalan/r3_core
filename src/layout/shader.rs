@@ -15,6 +15,17 @@ pub trait Shader {
     fn apply_settings(&self, render_pass: &mut wgpu::RenderPass, settings: &Self::Settings) {}
 }
 
+impl<S: Shader> Shader for &S {
+    type Layout = S::Layout;
+
+    type Settings = S::Settings;
+
+    #[inline(always)]
+    fn get_pipeline(&self, settings: &Self::Settings) -> &wgpu::RenderPipeline {
+        (**self).get_pipeline(settings)
+    }
+}
+
 #[derive(Debug)]
 pub struct ShaderInstance<S: Shader> {
     shader: S,
@@ -109,6 +120,10 @@ where
     #[inline]
     pub fn new(shader: S) -> Self {
         Self { shader }
+    }
+
+    pub fn new_ref(shader: &S) -> &Self {
+        unsafe { &*(shader as *const _ as *const Self) }
     }
 
     #[inline]

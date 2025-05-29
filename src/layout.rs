@@ -197,41 +197,24 @@ impl<L: ComputeLayout> CreateComputePipeline for L {
 #[derive(Debug, Clone)]
 pub struct RawComputeLayout {
     pipeline_layout: wgpu::PipelineLayout,
-    format: wgpu::TextureFormat,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct ComputeLayoutConfig<'a> {
     pub bind_group_layouts: &'a [&'a wgpu::BindGroupLayout],
-    pub format: wgpu::TextureFormat,
 }
 
-impl Default for ComputeLayoutConfig<'_> {
-    fn default() -> Self {
-        Self {
-            bind_group_layouts: &[],
-            format: wgpu::TextureFormat::Bgra8UnormSrgb,
-        }
-    }
-}
 
 impl RawComputeLayout {
     fn layout(&self) -> &wgpu::PipelineLayout {
         &self.pipeline_layout
     }
 
-    pub fn format(&self) -> wgpu::TextureFormat {
-        self.format
+    pub fn from_raw(pipeline_layout: wgpu::PipelineLayout) -> Self {
+        Self { pipeline_layout }
     }
 
-    pub fn from_raw(pipeline_layout: wgpu::PipelineLayout, format: wgpu::TextureFormat) -> Self {
-        Self {
-            pipeline_layout,
-            format,
-        }
-    }
-
-    pub fn new(render_context: &RenderContext, config: LayoutConfig) -> Self {
+    pub fn new(render_context: &RenderContext, config: ComputeLayoutConfig) -> Self {
         let pipeline_layout = unsafe { render_context.device() }.create_pipeline_layout(
             &wgpu::PipelineLayoutDescriptor {
                 label: None,
@@ -240,10 +223,7 @@ impl RawComputeLayout {
             },
         );
 
-        Self {
-            pipeline_layout,
-            format: config.format,
-        }
+        Self { pipeline_layout }
     }
 
     pub fn create_compute_pipeline(

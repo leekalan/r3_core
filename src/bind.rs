@@ -36,7 +36,15 @@ pub mod create_bind {
                 $($dbuffer:ident: $dty:ty => $dbinding:literal for $dvisibility:ident,)*
             },)?
             $(Textures => {
-                $($texture:ident: $DIMENSION:ty $(| for $t_count:literal)? => $t_binding:literal for $t_visibility:ident,)*
+                $($texture:ident: $DIMENSION:ty $(| for $t_count:literal)? => $t_binding:literal for $t_visibility:ident use {
+                    sample_type: $sample_type:expr,
+                },)*
+            },)?
+            $(StorageTextures => {
+                $($s_texture:ident: $S_DIMENSION:ty $(| for $s_t_count:literal)? => $s_t_binding:literal for $s_t_visibility:ident use {
+                    format: $texture_format:expr,
+                    access: $texture_access:expr,
+                },)*
             },)?
             $(Samplers => {
                 $($sampler:ident $(for $s_count:literal)? => $s_binding:literal for $s_visibility:ident,)*
@@ -104,12 +112,27 @@ pub mod create_bind {
                                     binding: $t_binding,
                                     visibility: wgpu::ShaderStages::$t_visibility,
                                     ty: wgpu::BindingType::Texture {
-                                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                                        sample_type: $sample_type,
                                         view_dimension: wgpu::TextureViewDimension::D2,
                                         multisampled: false,
                                     },
                                     count: create_bind::unwrap_or_default!(
                                         $(Some(std::num::NonZero::new($t_count).unwrap()))?,
+                                        None
+                                    ),
+                                },
+                            )*)?
+                            $($(
+                                wgpu::BindGroupLayoutEntry {
+                                    binding: $s_t_binding,
+                                    visibility: wgpu::ShaderStages::$s_t_visibility,
+                                    ty: wgpu::BindingType::StorageTexture {
+                                        access: $texture_access,
+                                        format: $texture_format,
+                                        view_dimension: wgpu::TextureViewDimension::D2,
+                                    },
+                                    count: create_bind::unwrap_or_default!(
+                                        $(Some(std::num::NonZero::new($s_t_count).unwrap()))?,
                                         None
                                     ),
                                 },
@@ -159,6 +182,9 @@ pub mod create_bind {
                     pub $texture: RawTexture<$DIMENSION>,
                 )*)?
                 $($(
+                    pub $s_texture: RawTexture<$S_DIMENSION>,
+                )*)?
+                $($(
                     pub $sampler: Sampler,
                 )*)?
             }
@@ -189,6 +215,9 @@ pub mod create_bind {
                     )?)?
                     $($(
                         $texture: RawTexture<$DIMENSION>,
+                    )*)?
+                    $($(
+                        $s_texture: RawTexture<$S_DIMENSION>,
                     )*)?
                     $($(
                         $sampler: Sampler,
@@ -227,6 +256,14 @@ pub mod create_bind {
                             ,)*)?
                             $($(
                                 wgpu::BindGroupEntry {
+                                    binding: $s_t_binding,
+                                    resource: wgpu::BindingResource::TextureView(
+                                        unsafe { &$s_texture.view() }
+                                    ),
+                                }
+                            ,)*)?
+                            $($(
+                                wgpu::BindGroupEntry {
                                     binding: $s_binding,
                                     resource: wgpu::BindingResource::Sampler(
                                         unsafe { &$sampler.inner() }
@@ -253,6 +290,9 @@ pub mod create_bind {
                             $texture,
                         )*)?
                         $($(
+                            $s_texture,
+                        )*)?
+                        $($(
                             $sampler,
                         )*)?
                     }
@@ -273,9 +313,29 @@ pub mod create_bind {
                             ,)*)?
                             $($(
                                 wgpu::BindGroupEntry {
+                                    binding: $sbinding,
+                                    resource: unsafe { self.$sbuffer.wgpu_buffer() }.as_entire_binding(),
+                                }
+                            ,)*)?
+                            $($(
+                                wgpu::BindGroupEntry {
+                                    binding: $dbinding,
+                                    resource: unsafe { self.$dbuffer.wgpu_buffer() }.as_entire_binding(),
+                                }
+                            ,)?)?
+                            $($(
+                                wgpu::BindGroupEntry {
                                     binding: $t_binding,
                                     resource: wgpu::BindingResource::TextureView(
                                         unsafe { &self.$texture.view() }
+                                    ),
+                                }
+                            ,)*)?
+                            $($(
+                                wgpu::BindGroupEntry {
+                                    binding: $s_t_binding,
+                                    resource: wgpu::BindingResource::TextureView(
+                                        unsafe { &self.$s_texture.view() }
                                     ),
                                 }
                             ,)*)?
@@ -308,8 +368,29 @@ pub mod create_bind {
 
                 $($(
                     #[inline(always)]
+                    pub const fn $sbuffer(&self) -> &StorageBuffer<$sty> {
+                        &self.$sbuffer
+                    }
+                )*)?
+
+                $($(
+                    #[inline(always)]
+                    pub const fn $dbuffer(&self) -> &DynamicBuffer<$dty> {
+                        &self.$dbuffer
+                    }
+                )?)?
+
+                $($(
+                    #[inline(always)]
                     pub const fn $texture(&self) -> &RawTexture<$DIMENSION> {
                         &self.$texture
+                    }
+                )*)?
+
+                $($(
+                    #[inline(always)]
+                    pub const fn $s_texture(&self) -> &RawTexture<$S_DIMENSION> {
+                        &self.$s_texture
                     }
                 )*)?
 

@@ -26,8 +26,9 @@ pub use crate::{
             NoInstanceRequirements, VRequirements, VertexAttr, VertexAttrMarker,
             VertexBufferLayout, VertexRequirements,
         },
-        ComputeLayout, ComputeLayoutConfig, CreateComputePipeline, CreatePipeline, Layout,
-        LayoutConfig, RawLayout, ShaderConfig, SharedComputeData, SharedData, VertexLayout,
+        ComputeLayout, ComputeLayoutConfig, ComputeShaderConfig, CreateComputePipeline,
+        CreatePipeline, Layout, LayoutConfig, RawComputeLayout, RawLayout, ShaderConfig,
+        SharedComputeData, SharedData, VertexLayout,
     },
     render_context::{
         CommandEncoder, RenderContext, RenderContextConfig, RenderPass, RenderPassInstanced,
@@ -40,7 +41,7 @@ pub use crate::{
         Surface, SurfaceInstanced,
     },
     texture::{
-        RawTexture, RawTextureView, Sampler, SamplerConfig, Texture, Texture1D, Texture2D,
+        RawTexture, RawTextureView, Sampler, Texture, Texture1D, Texture2D,
         Texture3D, TextureConfig,
     },
 };

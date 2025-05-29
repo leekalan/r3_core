@@ -15,48 +15,14 @@ pub trait ComputeShader {
     fn apply_settings(&self, render_pass: &mut wgpu::ComputePass, settings: &Self::Settings) {}
 }
 
-impl<S: ComputeShader> ComputeShader for Box<S> {
+impl<S: ComputeShader> ComputeShader for &S {
     type Layout = S::Layout;
+
     type Settings = S::Settings;
 
+    #[inline(always)]
     fn get_compute_pipeline(&self, settings: &Self::Settings) -> &wgpu::ComputePipeline {
-        self.as_ref().get_compute_pipeline(settings)
-    }
-}
-
-impl<S: ComputeShader> ComputeShader for Rc<S> {
-    type Layout = S::Layout;
-    type Settings = S::Settings;
-
-    fn get_compute_pipeline(&self, settings: &Self::Settings) -> &wgpu::ComputePipeline {
-        self.as_ref().get_compute_pipeline(settings)
-    }
-}
-
-impl<S: ComputeShader> ComputeShader for Arc<S> {
-    type Layout = S::Layout;
-    type Settings = S::Settings;
-
-    fn get_compute_pipeline(&self, settings: &Self::Settings) -> &wgpu::ComputePipeline {
-        self.as_ref().get_compute_pipeline(settings)
-    }
-}
-
-impl<S: ComputeShader> ComputeShader for Sc<S> {
-    type Layout = S::Layout;
-    type Settings = S::Settings;
-
-    fn get_compute_pipeline(&self, settings: &Self::Settings) -> &wgpu::ComputePipeline {
-        self.as_ref().get_compute_pipeline(settings)
-    }
-}
-
-impl<S: ComputeShader> ComputeShader for Asc<S> {
-    type Layout = S::Layout;
-    type Settings = S::Settings;
-
-    fn get_compute_pipeline(&self, settings: &Self::Settings) -> &wgpu::ComputePipeline {
-        self.as_ref().get_compute_pipeline(settings)
+        (**self).get_compute_pipeline(settings)
     }
 }
 
@@ -151,6 +117,11 @@ where
     #[inline]
     pub fn new(shader: S) -> Self {
         Self { shader }
+    }
+
+    #[inline]
+    pub fn from_ref(shader: &S) -> &Self {
+        unsafe { &*(shader as *const _ as *const Self) }
     }
 
     #[inline]

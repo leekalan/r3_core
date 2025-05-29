@@ -13,23 +13,28 @@ impl Hdr {
 
     pub fn new(render_context: &RenderContext, width: u32, height: u32) -> Self {
         let texture = Texture::new(
-            render_context,
-            wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            TextureConfig {
-                usage: Some(
-                    wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-                ),
-                format: Some(Self::TEXTURE_FORMAT),
-                ..default()
-            },
-            &SamplerConfig::Create(wgpu::SamplerDescriptor {
-                mag_filter: wgpu::FilterMode::Nearest,
-                ..default()
-            }),
+            RawTexture::new(
+                render_context,
+                wgpu::Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+                &TextureConfig {
+                    usages: Some(
+                        wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
+                    ),
+                    format: Some(Self::TEXTURE_FORMAT),
+                    ..default()
+                },
+            ),
+            Sampler::new(
+                render_context,
+                &wgpu::SamplerDescriptor {
+                    mag_filter: wgpu::FilterMode::Nearest,
+                    ..default()
+                }
+            )
         );
 
         Self {

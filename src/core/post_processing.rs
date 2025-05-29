@@ -10,7 +10,9 @@ pub struct PostProc {
 
 create_bind::bind!(PostProcBind, PostProcBindLayout {
     Textures => {
-        render: Texture2D => 0 for FRAGMENT,
+        render: Texture2D => 0 for FRAGMENT use {
+            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+        },
     },
     Samplers => {
         sampler => 1 for FRAGMENT,
@@ -28,21 +30,26 @@ impl PostProc {
         let layout = PostProcBindLayout::new(render_context);
 
         let texture = Texture::new(
-            render_context,
-            wgpu::Extent3d {
-                width,
-                height,
-                depth_or_array_layers: 1,
-            },
-            TextureConfig {
-                usage: Some(
-                    wgpu::TextureUsages::RENDER_ATTACHMENT
-                        | wgpu::TextureUsages::TEXTURE_BINDING
-                        | usage,
-                ),
-                ..default()
-            },
-            &SamplerConfig::default(),
+            RawTexture::new(
+                render_context,
+                wgpu::Extent3d {
+                    width,
+                    height,
+                    depth_or_array_layers: 1,
+                },
+                &TextureConfig {
+                    usages: Some(
+                        wgpu::TextureUsages::RENDER_ATTACHMENT
+                            | wgpu::TextureUsages::TEXTURE_BINDING
+                            | usage,
+                    ),
+                    ..default()
+                },
+            ),
+            Sampler::new(
+                render_context,
+                &wgpu::SamplerDescriptor::default(),
+            ),
         );
 
         Self {
@@ -73,7 +80,7 @@ impl PostProc {
     }
 
     pub fn clone_texture(&self) -> Texture {
-        unsafe { Texture::from_raw(self.raw_texture().clone(), self.sampler().clone()) }
+        Texture::new(self.raw_texture().clone(), self.sampler().clone())
     }
 
     pub fn resize(&mut self, render_context: &RenderContext, width: u32, height: u32) {
