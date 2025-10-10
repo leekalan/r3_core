@@ -58,12 +58,12 @@ impl<S: Shader> ShaderInstance<S> {
     }
 
     #[inline]
-    pub fn settings(&self) -> RwLockReadGuard<S::Settings> {
+    pub fn settings(&self) -> RwLockReadGuard<'_, S::Settings> {
         self.settings.read().unwrap()
     }
 
     #[inline]
-    pub fn settings_mut(&self) -> RwLockWriteGuard<S::Settings> {
+    pub fn settings_mut(&self) -> RwLockWriteGuard<'_, S::Settings> {
         self.settings.write().unwrap()
     }
 }

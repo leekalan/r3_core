@@ -92,7 +92,7 @@ impl Window {
         self.surface.get_current_texture().unwrap()
     }
 
-    pub fn command_encoder(&self) -> WindowCommandEncoder {
+    pub fn command_encoder(&self) -> WindowCommandEncoder<'_> {
         let output = self.surface.get_current_texture().unwrap();
 
         let view = unsafe {
@@ -131,7 +131,7 @@ pub struct WindowCommandEncoder<'r> {
 
 impl<'a> WindowCommandEncoder<'a> {
     #[inline(always)]
-    pub fn command_encoder(&self) -> &CommandEncoder {
+    pub fn command_encoder(&self) -> &CommandEncoder<'_> {
         &self.command_encoder
     }
 
@@ -188,7 +188,7 @@ impl<'a> WindowCommandEncoder<'a> {
         &mut self,
         load: Option<wgpu::LoadOp<wgpu::Color>>,
         depth_stencil_attachment: bool,
-    ) -> RenderPass<Void> {
+    ) -> RenderPass<'_, Void> {
         self.command_encoder.render_pass(
             &self.view,
             Some(load.unwrap_or(wgpu::LoadOp::Clear(
@@ -207,11 +207,11 @@ impl<'a> WindowCommandEncoder<'a> {
     }
 
     pub fn render_pass_with(
-        &mut self,
+        &'_ mut self,
         view: &RawTextureView<Texture2D>,
         load: Option<wgpu::LoadOp<wgpu::Color>>,
         depth_stencil_attachment: bool,
-    ) -> RenderPass<Void> {
+    ) -> RenderPass<'_, Void> {
         self.command_encoder.render_pass(
             view,
             Some(load.unwrap_or(wgpu::LoadOp::Clear(

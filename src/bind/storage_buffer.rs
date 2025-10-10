@@ -69,7 +69,7 @@ impl<T: 'static> StorageBuffer<T> {
 
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
-            usage: wgpu::BufferUsages::STORAGE | usage,
+            usage,
             size: mem::size_of::<T>() as u64 * size.get(),
             mapped_at_creation,
         });

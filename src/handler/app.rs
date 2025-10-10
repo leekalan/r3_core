@@ -25,7 +25,7 @@ impl<S> App<S> {
     }
 
     #[inline(always)]
-    pub fn command_encoder(&self) -> WindowCommandEncoder {
+    pub fn command_encoder(&self) -> WindowCommandEncoder<'_> {
         self.window.command_encoder()
     }
 

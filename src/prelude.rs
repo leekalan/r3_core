@@ -67,7 +67,7 @@ pub mod core {
         hdr::{CommandEncoderHdr, Hdr, WindowCommandEncoderHdr},
         post_processing::{PostProc, PostProcBind, PostProcBindLayout},
         surface::ShadedMesh,
-        tileset::TilesetQuad,
+        tileset::{TilesetQuad, TileInstance, SimpleTileLayout},
         transform::{Transform, Transform2d},
         vertex::{PosVertex, PosVertex2d, RBGAVertex, RGBVertex, UVVertex},
     };

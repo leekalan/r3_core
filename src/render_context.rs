@@ -71,6 +71,7 @@ impl RenderContext {
                 label: Some("Device"),
                 memory_hints: wgpu::MemoryHints::default(),
                 trace: wgpu::Trace::Off,
+                ..default()
             })
             .await
             .unwrap();
@@ -93,7 +94,7 @@ impl RenderContext {
             .create_shader_module(wgpu::ShaderModuleDescriptor { label, source })
     }
 
-    pub fn command_encoder(&self) -> CommandEncoder {
+    pub fn command_encoder(&'_ self) -> CommandEncoder<'_> {
         let encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
@@ -115,11 +116,11 @@ pub struct CommandEncoder<'r> {
 
 impl CommandEncoder<'_> {
     pub fn render_pass(
-        &mut self,
+        &'_ mut self,
         view: &RawTextureView<Texture2D>,
         load: Option<wgpu::LoadOp<wgpu::Color>>,
         depth_stencil_attachment: Option<wgpu::RenderPassDepthStencilAttachment>,
-    ) -> RenderPass<Void> {
+    ) -> RenderPass<'_, Void> {
         let render_pass = self.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
@@ -129,6 +130,7 @@ impl CommandEncoder<'_> {
                     load: load.unwrap_or(wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT)),
                     store: wgpu::StoreOp::Store,
                 },
+                depth_slice: None,
             })],
             depth_stencil_attachment,
             ..Default::default()
@@ -140,7 +142,7 @@ impl CommandEncoder<'_> {
         }
     }
 
-    pub fn compute_pass(&mut self) -> ComputePass<Void> {
+    pub fn compute_pass(&mut self) -> ComputePass<'_, Void> {
         ComputePass {
             compute_pass: self
                 .encoder

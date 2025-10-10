@@ -204,7 +204,7 @@ pub mod create_vertex_layout {
             $vis struct $L;
 
             impl $L {
-                const fn desc() -> &'static [wgpu::VertexBufferLayout<'static>] {
+                $vis const fn desc() -> &'static [wgpu::VertexBufferLayout<'static>] {
                     const ARR: [wgpu::VertexBufferLayout<'static>; create_vertex_attr::arg_len!([$($step_mode),*] for 0)] =
                         create_vertex_layout::layout_inner!({ $($V => $step_mode),* } => [] for 0);
 
