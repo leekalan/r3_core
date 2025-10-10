@@ -1,9 +1,9 @@
 use r3_core::prelude::{core::*, *};
 
-use cgmath::Vector3;
+use r3_core::cgmath::Vector3;
 
-use wgpu::Extent3d;
-use winit::{
+use r3_core::wgpu as wgpu;
+use r3_core::winit::{
     event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop},
     window::WindowId,
@@ -12,7 +12,7 @@ use winit::{
 #[tokio::main]
 async fn main() {
     let render_context = RenderContext::new(RenderContextConfig {
-        features: Some(wgpu::Features::all_webgpu_mask()),
+        features: Some(wgpu::Features::all_webgpu_mask().difference(wgpu::Features::CLIP_DISTANCES)),
         ..default()
     })
     .await;
@@ -105,7 +105,7 @@ fn on_event(
         post_proc.render.resize(
             &app.render_context,
             None,
-            Extent3d {
+            wgpu::Extent3d {
                 width: new_size.width,
                 height: new_size.height,
                 depth_or_array_layers: 1,

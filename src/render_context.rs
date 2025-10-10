@@ -11,6 +11,7 @@ pub struct RenderContextConfig {
     pub backends: Option<wgpu::Backends>,
     pub power_preference: Option<wgpu::PowerPreference>,
     pub features: Option<wgpu::Features>,
+    pub experimental_features: wgpu::ExperimentalFeatures,
     pub limits: Option<wgpu::Limits>,
 }
 
@@ -71,7 +72,7 @@ impl RenderContext {
                 label: Some("Device"),
                 memory_hints: wgpu::MemoryHints::default(),
                 trace: wgpu::Trace::Off,
-                ..default()
+                experimental_features: config.experimental_features,
             })
             .await
             .unwrap();

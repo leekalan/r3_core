@@ -3,19 +3,22 @@ name = "r3_core"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
+members = ["example"]
+
 [features]
-default = ["ecs"]
+default = []
 ecs = ["dep:bevy_ecs"]
 
 [dependencies]
 winit = { version = "0.30.12" }
-env_logger = "0.11.8"
 wgpu = "27.0.1"
-tokio = { version = "1.47.1", features = ["full"] }
 bytemuck = { version = "1.24.0", features = ["derive"] }
-image = "0.25.8"
 cgmath = "0.18.0"
 
 bevy_ecs = { version = "0.17.2", optional = true }
 
 strong_count = { path = "../strong_count" }
+
+[dev-dependencies]
+tokio = { version = "1.47.1", features = ["full"] }
