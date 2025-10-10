@@ -2,7 +2,7 @@ use r3_core::prelude::{core::*, *};
 
 use r3_core::cgmath::Vector3;
 
-use r3_core::wgpu as wgpu;
+use r3_core::wgpu;
 use r3_core::winit::{
     event::WindowEvent,
     event_loop::{ActiveEventLoop, EventLoop},
@@ -12,13 +12,23 @@ use r3_core::winit::{
 #[tokio::main]
 async fn main() {
     let render_context = RenderContext::new(RenderContextConfig {
-        features: Some(wgpu::Features::all_webgpu_mask().difference(wgpu::Features::CLIP_DISTANCES)),
+        features: Some(
+            wgpu::Features::all_webgpu_mask().difference(wgpu::Features::CLIP_DISTANCES),
+        ),
         ..default()
     })
     .await;
 
     env_logger::init();
     let event_loop = EventLoop::new().unwrap();
+
+    let callbacks = Callbacks::new(
+        Some(on_start),
+        Some(on_event),
+        Some(on_poll),
+        Some(Void),
+        Some(on_close),
+    );
 
     let mut handler = Handler::new(
         render_context,
@@ -31,9 +41,7 @@ async fn main() {
             }),
             ..default()
         },
-        on_start,
-        on_event,
-        on_close,
+        callbacks,
     );
 
     handler.init(event_loop);
@@ -83,20 +91,11 @@ fn on_start(app: AppConfig<Void>, _: &ActiveEventLoop) -> State {
     }
 }
 
-fn on_event(
-    app: &mut App<State>,
-    _: &ActiveEventLoop,
-    _: WindowId,
-    event: WindowEvent,
-) -> EventResult {
-    let post_proc = &mut app.state.post_processing_layout.post_proc;
-
-    let camera = &mut app.state.camera;
-    let camera_controller = &mut app.state.camera_controller;
-
-    camera_controller.yaw += 0.04;
-
+fn on_event(app: &mut App<State>, _: &ActiveEventLoop, _: WindowId, event: WindowEvent) {
     if let WindowEvent::Resized(new_size) = event {
+        let post_proc = &mut app.state.post_processing_layout.post_proc;
+        let camera = &mut app.state.camera;
+
         camera
             .projection
             .resize(new_size.width as _, new_size.height as _);
@@ -113,6 +112,15 @@ fn on_event(
         );
         post_proc.refresh(&app.render_context);
     };
+}
+
+fn on_poll(app: &mut App<State>, _: &ActiveEventLoop) {
+    let post_proc = &mut app.state.post_processing_layout.post_proc;
+
+    let camera = &mut app.state.camera;
+    let camera_controller = &mut app.state.camera_controller;
+
+    camera_controller.yaw += 0.04;
 
     camera.apply_transform(camera_controller.generate_transform());
 
@@ -134,8 +142,6 @@ fn on_event(
         .draw_screen_quad();
 
     encoder.present();
-
-    EventResult::Redraw
 }
 
 fn on_close(_: &mut App<State>, _: &ActiveEventLoop, _: WindowId) {

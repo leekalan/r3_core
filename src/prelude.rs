@@ -6,7 +6,7 @@ pub use crate::{
     handler::{
         app::{App, AppConfig},
         window::{Window, WindowCommandEncoder, WindowConfig},
-        EventResult, Handler, OnCloseCallBack, OnEventCallback, OnStartCallback,
+        Callbacks, Handler, OnCloseCallBack, OnEventCallback, OnStartCallback,
     },
     layout::{
         compute_shader::{
@@ -67,7 +67,7 @@ pub mod core {
         hdr::{CommandEncoderHdr, Hdr, WindowCommandEncoderHdr},
         post_processing::{PostProc, PostProcBind, PostProcBindLayout},
         surface::ShadedMesh,
-        tileset::{TilesetQuad, TileInstance, SimpleTileLayout},
+        tileset::{SimpleTileLayout, TileInstance, TilesetQuad},
         transform::{Transform, Transform2d},
         vertex::{PosVertex, PosVertex2d, RBGAVertex, RGBVertex, UVVertex},
     };
