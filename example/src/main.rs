@@ -22,14 +22,6 @@ async fn main() {
     env_logger::init();
     let event_loop = EventLoop::new().unwrap();
 
-    let callbacks = Callbacks::new(
-        Some(on_start),
-        Some(on_event),
-        Some(on_poll),
-        Some(Void),
-        Some(on_close),
-    );
-
     let mut handler = Handler::new(
         render_context,
         WindowConfig {
@@ -41,10 +33,19 @@ async fn main() {
             }),
             ..default()
         },
-        callbacks,
+        Framerate::Unlimited,
+        Callbacks::new(
+            on_start,
+            on_event,
+            |_: &mut _, _: &_| {
+                println!("Polling...");
+            },
+            on_draw,
+            |_: &mut _, _: &_, _| println!("Exiting..."),
+        ),
     );
 
-    handler.init(event_loop);
+    handler.run(event_loop);
 }
 
 fn on_start(app: AppConfig<Void>, _: &ActiveEventLoop) -> State {
@@ -114,7 +115,9 @@ fn on_event(app: &mut App<State>, _: &ActiveEventLoop, _: WindowId, event: Windo
     };
 }
 
-fn on_poll(app: &mut App<State>, _: &ActiveEventLoop) {
+fn on_draw(app: &mut App<State>, _: &ActiveEventLoop, _: WindowId) {
+    println!("Drawing...");
+
     let post_proc = &mut app.state.post_processing_layout.post_proc;
 
     let camera = &mut app.state.camera;
@@ -142,10 +145,6 @@ fn on_poll(app: &mut App<State>, _: &ActiveEventLoop) {
         .draw_screen_quad();
 
     encoder.present();
-}
-
-fn on_close(_: &mut App<State>, _: &ActiveEventLoop, _: WindowId) {
-    println!("Exiting...");
 }
 
 #[derive(Debug)]

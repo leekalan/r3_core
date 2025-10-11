@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use crate::prelude::*;
 
 #[derive(Debug)]
@@ -7,20 +9,34 @@ pub struct AppConfig<'r, 'w, C> {
     pub state: C,
 }
 
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Framerate {
+    #[default]
+    Unlimited,
+    Limited(Duration),
+}
+
 #[derive(Debug)]
 pub struct App<S> {
     pub render_context: RenderContext,
     pub state: S,
+    pub framerate: Framerate,
     pub window: Window,
 }
 
 impl<S> App<S> {
     #[inline]
-    pub fn new(render_context: RenderContext, window: Window, state: S) -> Self {
+    pub fn new(
+        render_context: RenderContext,
+        window: Window,
+        state: S,
+        framerate: Framerate,
+    ) -> Self {
         Self {
             render_context,
-            window,
             state,
+            framerate,
+            window,
         }
     }
 

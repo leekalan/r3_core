@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use winit::{
     application::ApplicationHandler,
     event::*,
@@ -5,7 +7,7 @@ use winit::{
     window::WindowId,
 };
 
-use crate::prelude::*;
+use crate::{handler::app::Framerate, prelude::*};
 
 pub mod app;
 pub mod window;
@@ -105,24 +107,40 @@ impl<S> OnCloseCallBack<S> for Void {
 }
 
 #[derive(Debug)]
-pub struct Callbacks<OnStart, OnEvent, OnPoll, OnDraw, OnClose> {
-    on_start: Option<OnStart>,
-    on_event: Option<OnEvent>,
-    on_poll: Option<OnPoll>,
-    on_draw: Option<OnDraw>,
-    on_close: Option<OnClose>,
+pub struct Callbacks<
+    C = Void,
+    S = Void,
+    OnStart: OnStartCallback<C, S> = Void,
+    OnEvent: OnEventCallback<S> = Void,
+    OnPoll: OnPollCallback<S> = Void,
+    OnDraw: OnDrawCallback<S> = Void,
+    OnClose: OnCloseCallBack<S> = Void,
+> {
+    on_start: OnStart,
+    on_event: OnEvent,
+    on_poll: OnPoll,
+    on_draw: OnDraw,
+    on_close: OnClose,
+    __marker: PhantomData<(C, S)>,
 }
 
-impl<OnStart, OnEvent, OnPoll, OnDraw, OnClose>
-    Callbacks<OnStart, OnEvent, OnPoll, OnDraw, OnClose>
+impl<
+        C,
+        S,
+        OnStart: OnStartCallback<C, S>,
+        OnEvent: OnEventCallback<S>,
+        OnPoll: OnPollCallback<S>,
+        OnDraw: OnDrawCallback<S>,
+        OnClose: OnCloseCallBack<S>,
+    > Callbacks<C, S, OnStart, OnEvent, OnPoll, OnDraw, OnClose>
 {
     #[inline(always)]
     pub fn new(
-        on_start: Option<OnStart>,
-        on_event: Option<OnEvent>,
-        on_poll: Option<OnPoll>,
-        on_draw: Option<OnDraw>,
-        on_close: Option<OnClose>,
+        on_start: OnStart,
+        on_event: OnEvent,
+        on_poll: OnPoll,
+        on_draw: OnDraw,
+        on_close: OnClose,
     ) -> Self {
         Self {
             on_start,
@@ -130,8 +148,15 @@ impl<OnStart, OnEvent, OnPoll, OnDraw, OnClose>
             on_poll,
             on_draw,
             on_close,
+            __marker: PhantomData,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PollStatus {
+    Polling,
+    WaitingForDraw,
 }
 
 #[derive(Debug)]
@@ -148,6 +173,7 @@ pub enum Handler<
         render_context: RenderContext,
         window_config: WindowConfig,
         state: Option<C>,
+        framerate: Framerate,
         on_start: Option<OnStart>,
         on_event: Option<OnEvent>,
         on_poll: Option<OnPoll>,
@@ -156,6 +182,8 @@ pub enum Handler<
     },
     Active {
         app: App<S>,
+        poll_status: PollStatus,
+        last_frame: Instant,
         on_poll: OnPoll,
         on_event: OnEvent,
         on_draw: OnDraw,
@@ -177,7 +205,8 @@ impl<
     pub fn new(
         render_context: RenderContext,
         window_config: WindowConfig,
-        callbacks: Callbacks<OnStart, OnEvent, OnPoll, OnDraw, OnClose>,
+        framerate: Framerate,
+        callbacks: Callbacks<C, S, OnStart, OnEvent, OnPoll, OnDraw, OnClose>,
     ) -> Self
     where
         C: Default,
@@ -186,11 +215,12 @@ impl<
             render_context,
             window_config,
             state: Some(default()),
-            on_start: callbacks.on_start,
-            on_event: callbacks.on_event,
-            on_poll: callbacks.on_poll,
-            on_draw: callbacks.on_draw,
-            on_close: callbacks.on_close,
+            framerate,
+            on_start: Some(callbacks.on_start),
+            on_event: Some(callbacks.on_event),
+            on_poll: Some(callbacks.on_poll),
+            on_draw: Some(callbacks.on_draw),
+            on_close: Some(callbacks.on_close),
         }
     }
 
@@ -199,22 +229,24 @@ impl<
         render_context: RenderContext,
         window_config: WindowConfig,
         state: C,
-        callbacks: Callbacks<OnStart, OnEvent, OnPoll, OnDraw, OnClose>,
+        framerate: Framerate,
+        callbacks: Callbacks<C, S, OnStart, OnEvent, OnPoll, OnDraw, OnClose>,
     ) -> Self {
         Self::Uninit {
             render_context,
             window_config,
             state: Some(state),
-            on_start: callbacks.on_start,
-            on_event: callbacks.on_event,
-            on_poll: callbacks.on_poll,
-            on_draw: callbacks.on_draw,
-            on_close: callbacks.on_close,
+            framerate,
+            on_start: Some(callbacks.on_start),
+            on_event: Some(callbacks.on_event),
+            on_poll: Some(callbacks.on_poll),
+            on_draw: Some(callbacks.on_draw),
+            on_close: Some(callbacks.on_close),
         }
     }
 
     #[inline(always)]
-    pub fn init(&mut self, event_loop: EventLoop<()>) {
+    pub fn run(&mut self, event_loop: EventLoop<()>) {
         event_loop.set_control_flow(ControlFlow::Poll);
         event_loop.run_app(self).unwrap();
     }
@@ -235,6 +267,7 @@ impl<
             render_context,
             window_config,
             state,
+            framerate,
             on_start,
             on_event,
             on_poll,
@@ -253,15 +286,17 @@ impl<
             let uninit_app = AppConfig {
                 render_context,
                 window: &mut window,
-                state: state.take().unwrap(),
+                state: unsafe { state.take().unwrap_unchecked() },
             };
 
             let state = on_start.take().unwrap().call(uninit_app, event_loop);
 
-            let app = App::new(render_context.clone(), window, state);
+            let app = App::new(render_context.clone(), window, state, *framerate);
 
             *self = Handler::Active {
                 app,
+                poll_status: PollStatus::Polling,
+                last_frame: Instant::now(),
                 on_event: unsafe { on_event.take().unwrap_unchecked() },
                 on_poll: unsafe { on_poll.take().unwrap_unchecked() },
                 on_draw: unsafe { on_draw.take().unwrap_unchecked() },
@@ -276,14 +311,14 @@ impl<
         window_id: WindowId,
         event: WindowEvent,
     ) {
-        event_loop.set_control_flow(ControlFlow::Poll);
-
         let Handler::Active {
             app,
+            poll_status,
+            last_frame,
             on_event,
-            on_poll: _,
             on_draw,
             on_close,
+            ..
         } = self
         else {
             event_loop.exit();
@@ -294,13 +329,16 @@ impl<
             WindowEvent::CloseRequested => {
                 unsafe { on_close.take().unwrap_unchecked() }.call(app, event_loop, window_id);
                 event_loop.exit();
+                return;
             }
             WindowEvent::Resized(new_size) => {
                 app.window.resize(new_size);
                 app.winit_window().request_redraw();
             }
             WindowEvent::RedrawRequested => {
+                *last_frame = Instant::now();
                 on_draw.call(app, event_loop, window_id);
+                *poll_status = PollStatus::Polling;
             }
             _ => {}
         }
@@ -312,18 +350,35 @@ impl<
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         let Handler::Active {
             app,
-            on_event: _,
+            last_frame,
+            poll_status,
             on_poll,
-            on_draw: _,
-            on_close: _,
+            ..
         } = self
         else {
             event_loop.exit();
             return;
         };
 
+        if *poll_status == PollStatus::WaitingForDraw {
+            if let Framerate::Limited(frame_time) = app.framerate {
+                let elapsed = last_frame.elapsed();
+                if elapsed >= frame_time {
+                    app.winit_window().request_redraw();
+                }
+            } else {
+                app.winit_window().request_redraw();
+            }
+            return;
+        }
+
         on_poll.call(app, event_loop);
 
-        app.winit_window().request_redraw();
+        *poll_status = PollStatus::WaitingForDraw;
+        if let Framerate::Limited(frame_time) = app.framerate {
+            event_loop.set_control_flow(ControlFlow::WaitUntil(*last_frame + frame_time));
+        } else {
+            app.winit_window().request_redraw();
+        }
     }
 }
