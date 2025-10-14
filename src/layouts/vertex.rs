@@ -1,7 +1,5 @@
 use std::fmt::Debug;
 
-// use crate::prelude::*;
-
 pub trait VertexAttr<const OFFSET: u32 = 0>: Debug + Clone {
     const ATTR: &'static [wgpu::VertexAttribute];
     const SIZE: u32;
@@ -23,11 +21,9 @@ pub trait VertexRequirements: Debug + Clone {
 pub type VRequirements<V> = <V as VertexRequirements>::Requirements;
 
 pub trait InstanceRequirements: Debug + Clone {
-    type Requirements: Debug + Clone;
+    type RequirementsI: Debug + Clone;
 }
-pub type IRequirements<V> = <V as InstanceRequirements>::Requirements;
-
-pub auto trait NoInstanceRequirements {}
+pub type IRequirements<V> = <V as InstanceRequirements>::RequirementsI;
 
 impl<V: VertexAttr> VertexBufferLayout for V {
     const DESC: &'static [wgpu::VertexBufferLayout<'static>] =
@@ -138,10 +134,8 @@ pub mod create_vertex_layout {
         ($L:ty: {$V:ty => Instance $(,$Vs:ty => Vertex)*} => ($($A:ty),*) for $count:expr) => {
             impl InstanceRequirements for $L {
                 #[allow(unused_parens)]
-                type Requirements = ($($A,)*VertexAttrMarker<$V,$count>);
+                type RequirementsI = ($($A,)*VertexAttrMarker<$V,$count>);
             }
-
-            impl !NoInstanceRequirements for $L {}
         };
         ($L:ty: {$V:ty => Instance $(,$Vs:ty => $step_mode:ident)*} => ($($A:ty),*) for $count:expr) => {
             create_vertex_layout::instance_req_inner!($L: {$($Vs => $step_mode),*} => ($($A,)* VertexAttrMarker<$V,$count>) for { ($count + 1) });
@@ -282,7 +276,7 @@ mod tests {
     }
 
     impl InstanceRequirements for RawVertexLayout {
-        type Requirements = VertexAttrMarker<Instance, 1>;
+        type RequirementsI = VertexAttrMarker<Instance, 1>;
     }
 
     create_vertex_layout::layout!(VertexLayout {
@@ -300,7 +294,7 @@ mod tests {
     fn _v_req(req: <RawVertexLayout as VertexRequirements>::Requirements) {
         let _: <VertexLayout as VertexRequirements>::Requirements = req;
     }
-    fn _i_req(req: <RawVertexLayout as InstanceRequirements>::Requirements) {
-        let _: <VertexLayout as InstanceRequirements>::Requirements = req;
+    fn _i_req(req: <RawVertexLayout as InstanceRequirements>::RequirementsI) {
+        let _: <VertexLayout as InstanceRequirements>::RequirementsI = req;
     }
 }

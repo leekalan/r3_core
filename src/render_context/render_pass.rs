@@ -109,7 +109,27 @@ impl<'r, L: Layout, S, const SA: bool, I> RenderPass<'r, L, S, SA, I> {
         unsafe { self.coerce() }
     }
 
-    pub fn draw_screen_quad(&mut self) where L::VertexLayout: VertexRequirements<Requirements = ()> {
+    pub fn set_instance_requirements(
+        mut self,
+        requirements: InstanceData<L>,
+    ) -> RenderPass<'r, L, S, SA, Instanced>
+    where
+        L: InstancedLayout,
+    {
+        let size = L::set_instances(&mut self.render_pass, requirements);
+
+        RenderPass {
+            render_pass: self.render_pass,
+            __layout: PhantomData,
+            __shader_attached: PhantomData,
+            instance: Instanced { size },
+        }
+    }
+
+    pub fn draw_screen_quad(&mut self)
+    where
+        L::VertexLayout: VertexRequirements<Requirements = ()>,
+    {
         self.render_pass.draw(0..3, 0..1);
     }
 }
@@ -141,7 +161,7 @@ impl<'r, L: Layout, S: Shader> RenderPass<'r, L, S, true, Void> {
 
 impl<'r, L: Layout, S: Shader> RenderPass<'r, L, S, false, Instanced> {
     #[inline]
-    pub fn draw_mesh<M: Mesh<VRequirements<L::VertexLayout>>>(&mut self, mesh: &M) {
+    pub fn draw_mesh_instanced<M: Mesh<VRequirements<L::VertexLayout>>>(&mut self, mesh: &M) {
         unsafe { mesh.draw_instanced(&mut self.render_pass, 0..self.instance.size) };
     }
 }

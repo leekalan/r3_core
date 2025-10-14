@@ -37,9 +37,7 @@ async fn main() {
         Callbacks::new(
             on_start,
             on_event,
-            |_: &mut _, _: &_| {
-                println!("Polling...");
-            },
+            |_: &mut _, _: &_| {},
             on_draw,
             |_: &mut _, _: &_, _| println!("Exiting..."),
         ),
@@ -111,8 +109,6 @@ fn on_event(app: &mut App<State>, _: &ActiveEventLoop, _: WindowId, event: Windo
 }
 
 fn on_draw(app: &mut App<State>, _: &ActiveEventLoop, _: WindowId) {
-    println!("Drawing...");
-
     let post_proc = &mut app.state.post_processing_layout.post_proc;
 
     let camera = &mut app.state.camera;

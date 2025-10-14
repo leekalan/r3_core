@@ -8,29 +8,33 @@ pub use crate::{
         window::{Window, WindowCommandEncoder, WindowConfig},
         Callbacks, Handler, OnCloseCallBack, OnEventCallback, OnPollCallback, OnStartCallback,
     },
-    layout::{
-        compute_shader::{
-            ApplyComputeShaderInstance, ComputeShader, ComputeShaderHandle, ComputeShaderInstance,
-            DefaultComputeShaderInstance, StaticComputeShaderInstance,
+    layouts::{
+        compute_layout::{
+            ComputeLayout, ComputeLayoutConfig, ComputeShaderConfig, CreateComputePipeline,
+            RawComputeLayout, SharedComputeData,
         },
+        instanced_layout::{InstanceData, InstancedLayout, SharedDataI},
         instances::{
             Instances, SimpleInstances, SimpleInstances2, SimpleInstances3, SimpleInstances4,
             SimpleInstances5,
         },
-        shader::Shader,
+        layout::{
+            CreatePipeline, Layout, LayoutConfig, RawLayout, ShaderConfig, SharedData, VertexLayout,
+        },
+        shaders::{
+            compute_shader::{
+                ApplyComputeShaderInstance, ComputeShader, ComputeShaderHandle,
+                ComputeShaderInstance, DefaultComputeShaderInstance, StaticComputeShaderInstance,
+            },
+            shader::Shader,
+        },
         vertex::{
             create_vertex_attr, create_vertex_layout, IRequirements, InstanceRequirements,
-            NoInstanceRequirements, VRequirements, VertexAttr, VertexAttrMarker,
-            VertexBufferLayout, VertexRequirements,
+            VRequirements, VertexAttr, VertexAttrMarker, VertexBufferLayout, VertexRequirements,
         },
-        ComputeLayout, ComputeLayoutConfig, ComputeShaderConfig, CreateComputePipeline,
-        CreatePipeline, Layout, LayoutConfig, RawComputeLayout, RawLayout, ShaderConfig,
-        SharedComputeData, SharedData, VertexLayout,
     },
     render_context::{
-        command_encoder::CommandEncoder,
-        compute_pass::ComputePass,
-        render_pass::RenderPass,
+        command_encoder::CommandEncoder, compute_pass::ComputePass, render_pass::RenderPass,
         RenderContext, RenderContextConfig,
     },
     surface::mesh::{

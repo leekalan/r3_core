@@ -4,7 +4,7 @@ pub(crate) mod handler;
 pub(crate) mod render_context;
 
 pub(crate) mod bind;
-pub(crate) mod layout;
+pub(crate) mod layouts;
 pub(crate) mod surface;
 pub(crate) mod texture;
 
