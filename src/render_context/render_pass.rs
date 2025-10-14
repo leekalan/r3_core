@@ -65,7 +65,7 @@ impl<'r, L, S, const SA: bool, I: Copy> RenderPass<'r, L, S, SA, I> {
     #[inline]
     pub fn set_shared_data<NL: Layout>(
         mut self,
-        shared_data: SharedData<NL>,
+        shared_data: &SharedData<NL>,
     ) -> RenderPass<'r, NL, Void, false, Void> {
         NL::set_shared_data(unsafe { self.inner() }, shared_data);
 
@@ -75,9 +75,9 @@ impl<'r, L, S, const SA: bool, I: Copy> RenderPass<'r, L, S, SA, I> {
     #[inline]
     pub fn create_shared_data<NL: Layout>(mut self) -> RenderPass<'r, NL, Void, false, Void>
     where
-        for<'k> SharedData<'k, NL>: Default,
+        SharedData<NL>: Default,
     {
-        NL::set_shared_data(unsafe { self.inner() }, default());
+        NL::set_shared_data(unsafe { self.inner() }, &default());
 
         unsafe { self.wipe().coerce() }
     }
@@ -122,7 +122,7 @@ impl<'r, L: Layout, S, const SA: bool, I: Copy> RenderPass<'r, L, S, SA, I> {
 
     pub fn set_instance_requirements(
         mut self,
-        requirements: InstanceData<L>,
+        requirements: &InstanceData<L>,
     ) -> RenderPass<'r, L, S, SA, Instanced>
     where
         L: InstancedLayout,

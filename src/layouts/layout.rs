@@ -3,7 +3,7 @@ use std::num::NonZeroU32;
 use crate::prelude::*;
 
 pub type VertexLayout<L> = <L as Layout>::VertexLayout;
-pub type SharedData<'a, L> = <L as Layout>::SharedData<'a>;
+pub type SharedData<L> = <L as Layout>::SharedData;
 
 #[derive(Default, Debug, Clone)]
 pub struct ShaderConfig<'a> {
@@ -19,12 +19,12 @@ pub struct ShaderConfig<'a> {
 
 pub trait Layout {
     type VertexLayout: VertexBufferLayout;
-    type SharedData<'a> = Void;
+    type SharedData = Void;
 
     fn raw_layout(&self) -> &RawLayout<Self::VertexLayout>;
 
     #[allow(unused)]
-    fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: SharedData<Self>) {}
+    fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: &SharedData<Self>) {}
 }
 
 pub trait CreatePipeline {

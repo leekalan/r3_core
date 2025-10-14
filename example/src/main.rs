@@ -173,7 +173,7 @@ impl NewLayout {
 
 impl Layout for NewLayout {
     type VertexLayout = RGBVertex;
-    type SharedData<'a> = &'a CameraBind;
+    type SharedData = CameraBind;
 
     #[inline(always)]
     fn raw_layout(&self) -> &RawLayout<Self::VertexLayout> {
@@ -181,7 +181,7 @@ impl Layout for NewLayout {
     }
 
     #[inline(always)]
-    fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: SharedData<Self>) {
+    fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: &SharedData<Self>) {
         render_pass.set_bind_group(0, shared_data.bind_group(), &[]);
     }
 }
@@ -264,13 +264,13 @@ impl PostProcessingLayout {
 
 impl Layout for PostProcessingLayout {
     type VertexLayout = Void;
-    type SharedData<'a> = &'a PostProc;
+    type SharedData = PostProc;
 
     fn raw_layout(&self) -> &RawLayout<Self::VertexLayout> {
         &self.layout
     }
 
-    fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: SharedData<Self>) {
+    fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: &SharedData<Self>) {
         render_pass.set_bind_group(0, shared_data.bind_group(), &[]);
     }
 }

@@ -39,7 +39,7 @@ impl<'m, 'r> RenderPassMut<'m, 'r, Void, Void, false, Void> {
     #[inline]
     pub fn set_shared_data_ref<NL: Layout>(
         mut self,
-        shared_data: SharedData<NL>,
+        shared_data: &SharedData<NL>,
     ) -> RenderPassMut<'m, 'r, NL, Void, false, Void> {
         NL::set_shared_data(unsafe { self.inner() }, shared_data);
 
@@ -54,9 +54,9 @@ impl<'m, 'r> RenderPassMut<'m, 'r, Void, Void, false, Void> {
     #[inline]
     pub fn create_shared_data<NL: Layout>(mut self) -> RenderPassMut<'m, 'r, NL, Void, false, Void>
     where
-        for<'k> SharedData<'k, NL>: Default,
+        SharedData<NL>: Default,
     {
-        NL::set_shared_data(unsafe { self.inner() }, default());
+        NL::set_shared_data(unsafe { self.inner() }, &default());
 
         RenderPassMut {
             render_pass: self.render_pass,
@@ -69,10 +69,7 @@ impl<'m, 'r> RenderPassMut<'m, 'r, Void, Void, false, Void> {
 
 impl<'m, 'r, L: Layout, I: Copy> RenderPassMut<'m, 'r, L, Void, false, I> {
     #[inline]
-    pub fn override_shared_data(
-        mut self,
-        shared_data: SharedData<L>,
-    ) -> Self {
+    pub fn override_shared_data(mut self, shared_data: &SharedData<L>) -> Self {
         L::set_shared_data(unsafe { self.inner() }, shared_data);
         self
     }
