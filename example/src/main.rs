@@ -68,25 +68,20 @@ fn on_start(app: AppConfig<Void>, _: &ActiveEventLoop) -> State {
 
     let layout = NewLayout::new(app.render_context, camera.layout());
 
+    let mesh = SimpleMesh::new_uint16(app.render_context, VERTICES, INDICES);
+
     let shader = NewShader::new(app.render_context, &layout);
-
-    let shader_instance = DefaultShaderInstance::new(shader);
-
-    let mesh = ShadedMesh::new(
-        SimpleMesh::new_uint16(app.render_context, VERTICES, INDICES),
-        shader_instance,
-    );
 
     let post_processing_layout = PostProcessingLayout::new(app.render_context, width, height);
 
-    let crt_shader =
-        DefaultShaderInstance::new(CrtShader::new(app.render_context, &post_processing_layout));
+    let crt_shader = CrtShader::new(app.render_context, &post_processing_layout);
 
     State {
         camera_controller,
         camera,
         _layout: layout,
         mesh,
+        shader,
         post_processing_layout,
         crt_shader,
     }
@@ -134,7 +129,8 @@ fn on_draw(app: &mut App<State>, _: &ActiveEventLoop, _: WindowId) {
     encoder
         .render_pass(None, true)
         .set_shared_data(camera.bind())
-        .draw_surface(&app.state.mesh);
+        .apply_shader_with_default(&app.state.shader)
+        .draw_mesh(&app.state.mesh);
 
     encoder.copy_from_output(post_proc.raw_texture());
 
@@ -152,9 +148,10 @@ struct State {
     camera_controller: GroundedCamera,
     camera: Camera,
     _layout: NewLayout,
-    mesh: ShadedMesh<SimpleMesh<RGBVertex, index_format::Uint16>, DefaultShaderInstance<NewShader>>,
+    mesh: SimpleMesh<RGBVertex, index_format::Uint16>,
+    shader: NewShader,
     post_processing_layout: PostProcessingLayout,
-    crt_shader: DefaultShaderInstance<CrtShader>,
+    crt_shader: CrtShader,
 }
 
 #[repr(transparent)]
@@ -217,7 +214,7 @@ impl Shader for NewShader {
     type Layout = NewLayout;
 
     #[inline(always)]
-    fn get_pipeline(&self, _: &Self::Settings) -> &wgpu::RenderPipeline {
+    fn get_pipeline(&self) -> &wgpu::RenderPipeline {
         &self.pipeline
     }
 }
@@ -311,7 +308,7 @@ impl CrtShader {
 impl Shader for CrtShader {
     type Layout = PostProcessingLayout;
 
-    fn get_pipeline(&self, _: &Self::Settings) -> &wgpu::RenderPipeline {
+    fn get_pipeline(&self) -> &wgpu::RenderPipeline {
         &self.pipeline
     }
 }

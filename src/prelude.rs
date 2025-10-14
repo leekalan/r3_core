@@ -17,10 +17,7 @@ pub use crate::{
             Instances, SimpleInstances, SimpleInstances2, SimpleInstances3, SimpleInstances4,
             SimpleInstances5,
         },
-        shader::{
-            ApplyShaderInstance, DefaultShaderInstance, Shader, ShaderHandle, ShaderInstance,
-            StaticShaderInstance,
-        },
+        shader::Shader,
         vertex::{
             create_vertex_attr, create_vertex_layout, IRequirements, InstanceRequirements,
             NoInstanceRequirements, VRequirements, VertexAttr, VertexAttrMarker,
@@ -31,14 +28,14 @@ pub use crate::{
         SharedComputeData, SharedData, VertexLayout,
     },
     render_context::{
-        CommandEncoder, RenderContext, RenderContextConfig, RenderPass, RenderPassInstanced,
+        command_encoder::CommandEncoder,
+        compute_pass::ComputePass,
+        render_pass::RenderPass,
+        RenderContext, RenderContextConfig,
     },
-    surface::{
-        mesh::{
-            index_format, Mesh, SimpleMesh, SimpleMesh0, SimpleMesh2, SimpleMesh3, SimpleMesh4,
-            SimpleMesh5,
-        },
-        Surface, SurfaceInstanced,
+    surface::mesh::{
+        index_format, Mesh, SimpleMesh, SimpleMesh0, SimpleMesh2, SimpleMesh3, SimpleMesh4,
+        SimpleMesh5,
     },
     texture::{
         RawTexture, RawTextureView, Sampler, Texture, Texture1D, Texture2D, Texture3D,
@@ -66,7 +63,6 @@ pub mod core {
         grounded_camera::GroundedCamera,
         hdr::{CommandEncoderHdr, Hdr, WindowCommandEncoderHdr},
         post_processing::{PostProc, PostProcBind, PostProcBindLayout},
-        surface::ShadedMesh,
         tileset::{SimpleTileLayout, TileInstance, TilesetQuad},
         transform::{Transform, Transform2d},
         vertex::{PosVertex, PosVertex2d, RBGAVertex, RGBVertex, UVVertex},
