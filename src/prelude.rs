@@ -34,7 +34,9 @@ pub use crate::{
         },
     },
     render_context::{
-        command_encoder::CommandEncoder, compute_pass::ComputePass, render_pass::RenderPass,
+        command_encoder::CommandEncoder,
+        compute_pass::ComputePass,
+        render_pass::{render_pass_mut::RenderPassMut, RenderPass},
         RenderContext, RenderContextConfig,
     },
     surface::mesh::{

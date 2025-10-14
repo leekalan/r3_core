@@ -12,7 +12,7 @@ impl CommandEncoder<'_> {
         view: &RawTextureView<Texture2D>,
         load: Option<wgpu::LoadOp<wgpu::Color>>,
         depth_stencil_attachment: Option<wgpu::RenderPassDepthStencilAttachment>,
-    ) -> RenderPass<'_, Void> {
+    ) -> RenderPass<'_> {
         let render_pass = self.encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {

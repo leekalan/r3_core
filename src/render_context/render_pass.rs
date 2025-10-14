@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+pub mod render_pass_mut;
+
 #[repr(transparent)]
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Instanced {
@@ -10,17 +12,17 @@ pub struct Instanced {
 pub struct RenderPass<
     'r,
     Layout = Void,
-    ShaderAttached = Void,
+    Shader = Void,
     const SHADER_SETTINGS: bool = false,
-    Instance = Void,
+    Instance: Copy = Void,
 > {
     pub(crate) render_pass: wgpu::RenderPass<'r>,
     pub(crate) __layout: PhantomData<Layout>,
-    pub(crate) __shader_attached: PhantomData<ShaderAttached>,
+    pub(crate) __shader_attached: PhantomData<Shader>,
     pub(crate) instance: Instance,
 }
 
-impl<'r, L, S, const SA: bool, I> RenderPass<'r, L, S, SA, I> {
+impl<'r, L, S, const SA: bool, I: Copy> RenderPass<'r, L, S, SA, I> {
     /// # Safety
     /// This function is unsafe because it allows the caller
     /// to mutate the inner `wgpu::RenderPass`
@@ -35,6 +37,15 @@ impl<'r, L, S, const SA: bool, I> RenderPass<'r, L, S, SA, I> {
     pub unsafe fn coerce<NL, NS, const NSA: bool>(self) -> RenderPass<'r, NL, NS, NSA, I> {
         RenderPass {
             render_pass: self.render_pass,
+            __layout: PhantomData,
+            __shader_attached: PhantomData,
+            instance: self.instance,
+        }
+    }
+
+    pub fn as_mut<'m>(&'m mut self) -> RenderPassMut<'m, 'r, L, S, SA, I> {
+        RenderPassMut {
+            render_pass: &mut self.render_pass,
             __layout: PhantomData,
             __shader_attached: PhantomData,
             instance: self.instance,
@@ -56,7 +67,7 @@ impl<'r, L, S, const SA: bool, I> RenderPass<'r, L, S, SA, I> {
         mut self,
         shared_data: SharedData<NL>,
     ) -> RenderPass<'r, NL, Void, false, Void> {
-        NL::set_shared_data(&mut self.render_pass, shared_data);
+        NL::set_shared_data(unsafe { self.inner() }, shared_data);
 
         unsafe { self.wipe().coerce() }
     }
@@ -64,21 +75,21 @@ impl<'r, L, S, const SA: bool, I> RenderPass<'r, L, S, SA, I> {
     #[inline]
     pub fn create_shared_data<NL: Layout>(mut self) -> RenderPass<'r, NL, Void, false, Void>
     where
-        for<'a> SharedData<'a, NL>: Default,
+        for<'k> SharedData<'k, NL>: Default,
     {
-        NL::set_shared_data(&mut self.render_pass, default());
+        NL::set_shared_data(unsafe { self.inner() }, default());
 
         unsafe { self.wipe().coerce() }
     }
 }
 
-impl<'r, L: Layout, S, const SA: bool, I> RenderPass<'r, L, S, SA, I> {
+impl<'r, L: Layout, S, const SA: bool, I: Copy> RenderPass<'r, L, S, SA, I> {
     #[inline]
     pub fn apply_shader<NS: Shader<Layout = L>>(
         mut self,
         shader: &NS,
     ) -> RenderPass<'r, L, NS, false, I> {
-        self.render_pass.set_pipeline(shader.get_pipeline());
+        unsafe { self.inner() }.set_pipeline(shader.get_pipeline());
 
         unsafe { self.coerce() }
     }
@@ -89,8 +100,8 @@ impl<'r, L: Layout, S, const SA: bool, I> RenderPass<'r, L, S, SA, I> {
         shader: &NS,
         settings: &NS::Settings,
     ) -> RenderPass<'r, L, NS, true, I> {
-        self.render_pass.set_pipeline(shader.get_pipeline());
-        NS::apply_settings(&mut self.render_pass, settings);
+        unsafe { self.inner() }.set_pipeline(shader.get_pipeline());
+        NS::apply_settings(unsafe { self.inner() }, settings);
 
         unsafe { self.coerce() }
     }
@@ -103,8 +114,8 @@ impl<'r, L: Layout, S, const SA: bool, I> RenderPass<'r, L, S, SA, I> {
     where
         NS::Settings: Default,
     {
-        self.render_pass.set_pipeline(shader.get_pipeline());
-        NS::apply_settings(&mut self.render_pass, &default());
+        unsafe { self.inner() }.set_pipeline(shader.get_pipeline());
+        NS::apply_settings(unsafe { self.inner() }, &default());
 
         unsafe { self.coerce() }
     }
@@ -116,7 +127,7 @@ impl<'r, L: Layout, S, const SA: bool, I> RenderPass<'r, L, S, SA, I> {
     where
         L: InstancedLayout,
     {
-        let size = L::set_instances(&mut self.render_pass, requirements);
+        let size = L::set_instances(unsafe { self.inner() }, requirements);
 
         RenderPass {
             render_pass: self.render_pass,
@@ -130,14 +141,14 @@ impl<'r, L: Layout, S, const SA: bool, I> RenderPass<'r, L, S, SA, I> {
     where
         L::VertexLayout: VertexRequirements<Requirements = ()>,
     {
-        self.render_pass.draw(0..3, 0..1);
+        unsafe { self.inner() }.draw(0..3, 0..1);
     }
 }
 
-impl<'r, L: Layout, S: Shader, const SA: bool, I> RenderPass<'r, L, S, SA, I> {
+impl<'r, L: Layout, S: Shader, const SA: bool, I: Copy> RenderPass<'r, L, S, SA, I> {
     #[inline]
     pub fn apply_settings(mut self, settings: &S::Settings) -> RenderPass<'r, L, S, true, I> {
-        S::apply_settings(&mut self.render_pass, settings);
+        S::apply_settings(unsafe { self.inner() }, settings);
 
         unsafe { self.coerce() }
     }
@@ -146,7 +157,7 @@ impl<'r, L: Layout, S: Shader, const SA: bool, I> RenderPass<'r, L, S, SA, I> {
     where
         S::Settings: Default,
     {
-        S::apply_settings(&mut self.render_pass, &default());
+        S::apply_settings(unsafe { self.inner() }, &default());
 
         unsafe { self.coerce() }
     }
@@ -155,11 +166,11 @@ impl<'r, L: Layout, S: Shader, const SA: bool, I> RenderPass<'r, L, S, SA, I> {
 impl<'r, L: Layout, S: Shader> RenderPass<'r, L, S, true, Void> {
     #[inline]
     pub fn draw_mesh<M: Mesh<VRequirements<L::VertexLayout>>>(&mut self, mesh: &M) {
-        unsafe { mesh.draw(&mut self.render_pass) };
+        unsafe { mesh.draw(self.inner()) };
     }
 }
 
-impl<'r, L: Layout, S: Shader> RenderPass<'r, L, S, false, Instanced> {
+impl<'r, L: Layout, S: Shader> RenderPass<'r, L, S, true, Instanced> {
     #[inline]
     pub fn draw_mesh_instanced<M: Mesh<VRequirements<L::VertexLayout>>>(&mut self, mesh: &M) {
         unsafe { mesh.draw_instanced(&mut self.render_pass, 0..self.instance.size) };

@@ -188,7 +188,7 @@ impl<'a> WindowCommandEncoder<'a> {
         &mut self,
         load: Option<wgpu::LoadOp<wgpu::Color>>,
         depth_stencil_attachment: bool,
-    ) -> RenderPass<'_, Void> {
+    ) -> RenderPass<'_> {
         self.command_encoder.render_pass(
             &self.view,
             Some(load.unwrap_or(wgpu::LoadOp::Clear(
@@ -211,7 +211,7 @@ impl<'a> WindowCommandEncoder<'a> {
         view: &RawTextureView<Texture2D>,
         load: Option<wgpu::LoadOp<wgpu::Color>>,
         depth_stencil_attachment: bool,
-    ) -> RenderPass<'_, Void> {
+    ) -> RenderPass<'_> {
         self.command_encoder.render_pass(
             view,
             Some(load.unwrap_or(wgpu::LoadOp::Clear(
