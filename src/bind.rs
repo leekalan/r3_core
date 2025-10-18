@@ -3,6 +3,8 @@ pub mod storage_buffer;
 pub mod uniform_buffer;
 
 pub trait Bind {
+    type Layout: BindLayout;
+
     fn bind_group(&self) -> &wgpu::BindGroup;
 }
 
@@ -403,6 +405,8 @@ pub mod create_bind {
             }
 
             impl Bind for $bind {
+                type Layout = $bind_layout;
+
                 #[inline(always)]
                 fn bind_group(&self) -> &wgpu::BindGroup {
                     &self.bind_group

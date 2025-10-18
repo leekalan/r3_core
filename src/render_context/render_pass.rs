@@ -4,6 +4,10 @@ pub mod render_pass_mut;
 
 #[repr(transparent)]
 #[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct NoInstance;
+
+#[repr(transparent)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Instanced {
     pub size: u32,
 }
@@ -66,20 +70,45 @@ impl<'r, L, S, const SA: bool, I: Copy> RenderPass<'r, L, S, SA, I> {
     pub fn set_shared_data<NL: Layout>(
         mut self,
         shared_data: &SharedData<NL>,
-    ) -> RenderPass<'r, NL, Void, false, Void> {
+    ) -> RenderPass<'r, NL, Void, false, NoInstance> {
         NL::set_shared_data(unsafe { self.inner() }, shared_data);
 
-        unsafe { self.wipe().coerce() }
+        RenderPass {
+            render_pass: self.render_pass,
+            __layout: PhantomData,
+            __shader_attached: PhantomData,
+            instance: NoInstance,
+        }
     }
 
     #[inline]
-    pub fn create_shared_data<NL: Layout>(mut self) -> RenderPass<'r, NL, Void, false, Void>
+    pub fn set_shared_data_i<NL: InstancedLayout>(
+        mut self,
+        shared_data: &SharedDataI<NL>,
+    ) -> RenderPass<'r, NL, Void, false, Void> {
+        NL::set_shared_data_instanced(unsafe { self.inner() }, shared_data);
+
+        RenderPass {
+            render_pass: self.render_pass,
+            __layout: PhantomData,
+            __shader_attached: PhantomData,
+            instance: Void,
+        }
+    }
+
+    #[inline(always)]
+    pub fn create_shared_data<NL: Layout>(self) -> RenderPass<'r, NL, Void, false, NoInstance>
     where
         SharedData<NL>: Default,
     {
-        NL::set_shared_data(unsafe { self.inner() }, &default());
+        self.set_shared_data(&default())
+    }
 
-        unsafe { self.wipe().coerce() }
+    pub fn create_shared_data_i<NL: InstancedLayout>(self) -> RenderPass<'r, NL, Void, false, Void>
+    where
+        SharedDataI<NL>: Default,
+    {
+        self.set_shared_data_i(&default())
     }
 }
 
@@ -163,7 +192,7 @@ impl<'r, L: Layout, S: Shader, const SA: bool, I: Copy> RenderPass<'r, L, S, SA,
     }
 }
 
-impl<'r, L: Layout, S: Shader> RenderPass<'r, L, S, true, Void> {
+impl<'r, L: Layout, S: Shader> RenderPass<'r, L, S, true, NoInstance> {
     #[inline]
     pub fn draw_mesh<M: Mesh<VRequirements<L::VertexLayout>>>(&mut self, mesh: &M) {
         unsafe { mesh.draw(self.inner()) };

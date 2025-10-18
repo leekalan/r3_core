@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{prelude::*, render_context::render_pass::NoInstance};
 
 #[derive(Debug)]
 pub struct RenderPassMut<
@@ -37,33 +37,52 @@ impl<'m, 'r, L, S, const SA: bool, I: Copy> RenderPassMut<'m, 'r, L, S, SA, I> {
 
 impl<'m, 'r> RenderPassMut<'m, 'r, Void, Void, false, Void> {
     #[inline]
-    pub fn set_shared_data_ref<NL: Layout>(
+    pub fn set_shared_data<NL: Layout>(
         mut self,
         shared_data: &SharedData<NL>,
-    ) -> RenderPassMut<'m, 'r, NL, Void, false, Void> {
+    ) -> RenderPassMut<'m, 'r, NL, Void, false, NoInstance> {
         NL::set_shared_data(unsafe { self.inner() }, shared_data);
 
         RenderPassMut {
             render_pass: self.render_pass,
             __layout: PhantomData,
             __shader_attached: PhantomData,
-            instance: self.instance,
+            instance: NoInstance,
         }
     }
 
-    #[inline]
-    pub fn create_shared_data<NL: Layout>(mut self) -> RenderPassMut<'m, 'r, NL, Void, false, Void>
-    where
-        SharedData<NL>: Default,
-    {
-        NL::set_shared_data(unsafe { self.inner() }, &default());
+    pub fn set_shared_data_i<NL: InstancedLayout>(
+        mut self,
+        shared_data: &SharedDataI<NL>,
+    ) -> RenderPassMut<'m, 'r, NL, Void, false, Void> {
+        NL::set_shared_data_instanced(unsafe { self.inner() }, shared_data);
 
         RenderPassMut {
             render_pass: self.render_pass,
             __layout: PhantomData,
             __shader_attached: PhantomData,
-            instance: self.instance,
+            instance: Void,
         }
+    }
+
+    #[inline(always)]
+    pub fn create_shared_data<NL: Layout>(
+        self,
+    ) -> RenderPassMut<'m, 'r, NL, Void, false, NoInstance>
+    where
+        SharedData<NL>: Default,
+    {
+        self.set_shared_data(&default())
+    }
+
+    #[inline(always)]
+    pub fn create_shared_data_i<NL: InstancedLayout>(
+        self,
+    ) -> RenderPassMut<'m, 'r, NL, Void, false, Void>
+    where
+        SharedDataI<NL>: Default,
+    {
+        self.set_shared_data_i(&default())
     }
 }
 
@@ -163,17 +182,34 @@ impl<'m, 'r, L: Layout, S: Shader, const SA: bool, I: Copy> RenderPassMut<'m, 'r
             instance: self.instance,
         }
     }
+
+    pub fn set_instance_requirements(
+        mut self,
+        requirements: &InstanceData<L>,
+    ) -> RenderPassMut<'m, 'r, L, S, SA, Instanced>
+    where
+        L: InstancedLayout,
+    {
+        let size = L::set_instances(unsafe { self.inner() }, requirements);
+
+        RenderPassMut {
+            render_pass: self.render_pass,
+            __layout: PhantomData,
+            __shader_attached: PhantomData,
+            instance: Instanced { size },
+        }
+    }
 }
 
 impl<'m, 'r, L: Layout, S: Shader> RenderPassMut<'m, 'r, L, S, true, Void> {
-    #[inline]
+    #[inline(always)]
     pub fn draw_mesh<M: Mesh<VRequirements<L::VertexLayout>>>(mut self, mesh: &M) {
         unsafe { mesh.draw(self.inner()) };
     }
 }
 
-impl<'m, 'r, L: Layout, S: Shader> RenderPassMut<'m, 'r, L, S, true, super::Instanced> {
-    #[inline]
+impl<'m, 'r, L: Layout, S: Shader> RenderPassMut<'m, 'r, L, S, true, Instanced> {
+    #[inline(always)]
     pub fn draw_mesh_instanced<M: Mesh<VRequirements<L::VertexLayout>>>(self, mesh: &M) {
         unsafe { mesh.draw_instanced(self.render_pass, 0..self.instance.size) };
     }
