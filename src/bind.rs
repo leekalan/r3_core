@@ -6,6 +6,7 @@ pub trait Bind {
     type Layout: BindLayout;
 
     fn bind_group(&self) -> &wgpu::BindGroup;
+    fn layout(&self) -> &Self::Layout;
 }
 
 pub trait BindLayout {
@@ -356,11 +357,6 @@ pub mod create_bind {
                     self.bind_group = new_bind_group;
                 }
 
-                #[inline]
-                pub const fn layout(&self) -> &$bind_layout {
-                    &self.layout
-                }
-
                 $($(
                     #[inline(always)]
                     pub const fn $buffer(&self) -> &UniformBuffer<$ty> {
@@ -410,6 +406,11 @@ pub mod create_bind {
                 #[inline(always)]
                 fn bind_group(&self) -> &wgpu::BindGroup {
                     &self.bind_group
+                }
+
+                #[inline]
+                fn layout(&self) -> &$bind_layout {
+                    &self.layout
                 }
             }
         };

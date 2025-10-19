@@ -67,7 +67,7 @@ impl Camera {
     }
 
     #[inline(always)]
-    pub const fn layout(&self) -> &CameraBindLayout {
+    pub fn layout(&self) -> &CameraBindLayout {
         self.bind.layout()
     }
 
