@@ -3,9 +3,11 @@ use crate::prelude::*;
 impl VertexBufferLayout for Void {
     const DESC: &'static [wgpu::VertexBufferLayout<'static>] = &[];
 }
-
 impl VertexRequirements for Void {
-    type Requirements = ();
+    type Requirements = Void;
+}
+impl InstanceRequirements for Void {
+    type RequirementsI = Void;
 }
 
 #[repr(C)]

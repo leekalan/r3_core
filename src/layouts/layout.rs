@@ -1,9 +1,9 @@
 use std::num::NonZeroU32;
 
-use crate::prelude::*;
+use crate::{layouts::layout_binds::HasLayoutBinds, prelude::*};
 
 pub type VertexLayout<L> = <L as Layout>::VertexLayout;
-pub type SharedData<L> = <L as Layout>::SharedData;
+pub type LayoutBinds<L> = <L as Layout>::LayoutBinds;
 
 #[derive(Default, Debug, Clone)]
 pub struct ShaderConfig<'a> {
@@ -17,14 +17,11 @@ pub struct ShaderConfig<'a> {
     pub fragment_entry: Option<&'a str>,
 }
 
-pub trait Layout {
+pub unsafe trait Layout {
     type VertexLayout: VertexBufferLayout;
-    type SharedData = Void;
+    type LayoutBinds: HasLayoutBinds<0>;
 
     fn raw_layout(&self) -> &RawLayout<Self::VertexLayout>;
-
-    #[allow(unused)]
-    fn set_shared_data(render_pass: &mut wgpu::RenderPass, shared_data: &SharedData<Self>) {}
 }
 
 pub trait CreatePipeline {

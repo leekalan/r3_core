@@ -36,62 +36,62 @@ impl<'m, 'r, L, S, const SA: bool, I: Copy> RenderPassMut<'m, 'r, L, S, SA, I> {
 }
 
 impl<'m, 'r> RenderPassMut<'m, 'r, Void, Void, false, Void> {
-    #[inline]
-    pub fn set_shared_data<NL: Layout>(
-        mut self,
-        shared_data: &SharedData<NL>,
-    ) -> RenderPassMut<'m, 'r, NL, Void, false, NoInstance> {
-        NL::set_shared_data(unsafe { self.inner() }, shared_data);
+    // #[inline]
+    // pub fn set_shared_data<NL: Layout>(
+    //     mut self,
+    //     shared_data: &SharedData<NL>,
+    // ) -> RenderPassMut<'m, 'r, NL, Void, false, NoInstance> {
+    //     NL::set_shared_data(unsafe { self.inner() }, shared_data);
 
-        RenderPassMut {
-            render_pass: self.render_pass,
-            __layout: PhantomData,
-            __shader_attached: PhantomData,
-            instance: NoInstance,
-        }
-    }
+    //     RenderPassMut {
+    //         render_pass: self.render_pass,
+    //         __layout: PhantomData,
+    //         __shader_attached: PhantomData,
+    //         instance: NoInstance,
+    //     }
+    // }
 
-    pub fn set_shared_data_i<NL: InstancedLayout>(
-        mut self,
-        shared_data: &SharedDataI<NL>,
-    ) -> RenderPassMut<'m, 'r, NL, Void, false, Void> {
-        NL::set_shared_data_instanced(unsafe { self.inner() }, shared_data);
+    // pub fn set_shared_data_i<NL: InstancedLayout>(
+    //     mut self,
+    //     shared_data: &SharedDataI<NL>,
+    // ) -> RenderPassMut<'m, 'r, NL, Void, false, Void> {
+    //     NL::set_shared_data_instanced(unsafe { self.inner() }, shared_data);
 
-        RenderPassMut {
-            render_pass: self.render_pass,
-            __layout: PhantomData,
-            __shader_attached: PhantomData,
-            instance: Void,
-        }
-    }
+    //     RenderPassMut {
+    //         render_pass: self.render_pass,
+    //         __layout: PhantomData,
+    //         __shader_attached: PhantomData,
+    //         instance: Void,
+    //     }
+    // }
 
-    #[inline(always)]
-    pub fn create_shared_data<NL: Layout>(
-        self,
-    ) -> RenderPassMut<'m, 'r, NL, Void, false, NoInstance>
-    where
-        SharedData<NL>: Default,
-    {
-        self.set_shared_data(&default())
-    }
+    // #[inline(always)]
+    // pub fn create_shared_data<NL: Layout>(
+    //     self,
+    // ) -> RenderPassMut<'m, 'r, NL, Void, false, NoInstance>
+    // where
+    //     SharedData<NL>: Default,
+    // {
+    //     self.set_shared_data(&default())
+    // }
 
-    #[inline(always)]
-    pub fn create_shared_data_i<NL: InstancedLayout>(
-        self,
-    ) -> RenderPassMut<'m, 'r, NL, Void, false, Void>
-    where
-        SharedDataI<NL>: Default,
-    {
-        self.set_shared_data_i(&default())
-    }
+    // #[inline(always)]
+    // pub fn create_shared_data_i<NL: InstancedLayout>(
+    //     self,
+    // ) -> RenderPassMut<'m, 'r, NL, Void, false, Void>
+    // where
+    //     SharedDataI<NL>: Default,
+    // {
+    //     self.set_shared_data_i(&default())
+    // }
 }
 
 impl<'m, 'r, L: Layout, I: Copy> RenderPassMut<'m, 'r, L, Void, false, I> {
-    #[inline]
-    pub fn override_shared_data(mut self, shared_data: &SharedData<L>) -> Self {
-        L::set_shared_data(unsafe { self.inner() }, shared_data);
-        self
-    }
+    // #[inline]
+    // pub fn override_shared_data(mut self, shared_data: &SharedData<L>) -> Self {
+    //     L::set_shared_data(unsafe { self.inner() }, shared_data);
+    //     self
+    // }
 }
 
 impl<'m, 'r, L: Layout, I: Copy> RenderPassMut<'m, 'r, L, Void, false, I> {
@@ -183,22 +183,22 @@ impl<'m, 'r, L: Layout, S: Shader, const SA: bool, I: Copy> RenderPassMut<'m, 'r
         }
     }
 
-    pub fn set_instance_requirements(
-        mut self,
-        requirements: &InstanceData<L>,
-    ) -> RenderPassMut<'m, 'r, L, S, SA, Instanced>
-    where
-        L: InstancedLayout,
-    {
-        let size = L::set_instances(unsafe { self.inner() }, requirements);
+    // pub fn set_instance_requirements(
+    //     mut self,
+    //     requirements: &InstanceData<L>,
+    // ) -> RenderPassMut<'m, 'r, L, S, SA, Instanced>
+    // where
+    //     L: InstancedLayout,
+    // {
+    //     let size = L::set_instances(unsafe { self.inner() }, requirements);
 
-        RenderPassMut {
-            render_pass: self.render_pass,
-            __layout: PhantomData,
-            __shader_attached: PhantomData,
-            instance: Instanced { size },
-        }
-    }
+    //     RenderPassMut {
+    //         render_pass: self.render_pass,
+    //         __layout: PhantomData,
+    //         __shader_attached: PhantomData,
+    //         instance: Instanced { size },
+    //     }
+    // }
 }
 
 impl<'m, 'r, L: Layout, S: Shader> RenderPassMut<'m, 'r, L, S, true, Void> {

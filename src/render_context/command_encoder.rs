@@ -28,12 +28,14 @@ impl CommandEncoder<'_> {
             ..Default::default()
         });
 
-        RenderPass {
-            render_pass,
-            __layout: PhantomData,
-            __shader_attached: PhantomData,
-            instance: Void,
-        }
+        // RenderPass {
+        //     render_pass,
+        //     __layout: PhantomData,
+        //     __shader_attached: PhantomData,
+        //     instance: Void,
+        // }
+
+        todo!()
     }
 
     pub fn compute_pass(&mut self) -> ComputePass<'_, Void> {

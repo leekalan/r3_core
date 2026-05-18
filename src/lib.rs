@@ -1,4 +1,10 @@
-#![feature(associated_type_defaults, negative_impls, auto_traits)]
+#![feature(
+    associated_type_defaults,
+    negative_impls,
+    auto_traits,
+    generic_const_exprs,
+    specialization
+)]
 
 pub(crate) mod handler;
 pub(crate) mod render_context;

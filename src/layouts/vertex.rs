@@ -1,11 +1,13 @@
 use std::fmt::Debug;
 
+use crate::prelude::Void;
+
 pub trait VertexAttr<const OFFSET: u32 = 0>: Debug + Clone {
     const ATTR: &'static [wgpu::VertexAttribute];
     const SIZE: u32;
 }
 
-pub trait VertexBufferLayout: VertexRequirements + Debug + Clone {
+pub trait VertexBufferLayout: VertexRequirements + InstanceRequirements + Debug + Clone {
     const DESC: &'static [wgpu::VertexBufferLayout<'static>];
 }
 
@@ -27,9 +29,11 @@ pub type IRequirements<V> = <V as InstanceRequirements>::RequirementsI;
 
 impl<V: VertexAttr> VertexBufferLayout for V {
     const DESC: &'static [wgpu::VertexBufferLayout<'static>] =
-        &[create_vertex_layout::raw_layout_inner!(V => Vertex for 0)];
+        &[create_vertex_layout::v_raw_layout_inner!(V => Vertex for 0)];
 }
-
+impl<V: VertexAttr> InstanceRequirements for V {
+    type RequirementsI = Void;
+}
 impl<V: VertexAttr> VertexRequirements for V {
     type Requirements = VertexAttrMarker<V, 0>;
 }
@@ -84,7 +88,7 @@ pub mod create_vertex_layout {
 
     #[allow(unused)]
     #[macro_export]
-    macro_rules! raw_layout_inner {
+    macro_rules! v_raw_layout_inner {
         ($V:ty => $step_mode:ident for $offset:expr) => {
             wgpu::VertexBufferLayout {
                 array_stride: std::mem::size_of::<$V>() as wgpu::BufferAddress,
@@ -97,17 +101,15 @@ pub mod create_vertex_layout {
     #[allow(unused)]
     #[macro_export]
     macro_rules! vertex_req_inner {
+        ($L:ty: {} => () for $count:expr) => {
+            impl VertexRequirements for $L {
+                type Requirements = Void;
+            }
+        };
         ($L:ty: {} => ($($A:ty),*) for $count:expr) => {
             impl VertexRequirements for $L {
                 #[allow(unused_parens)]
                 type Requirements = ($($A),*);
-            }
-        };
-
-        ($L:ty: {$V:ty => Vertex $(,$Vs:ty => Instance)*} => ($($A:ty),*) for $count:expr) => {
-            impl VertexRequirements for $L {
-                #[allow(unused_parens)]
-                type Requirements = ($($A,)*VertexAttrMarker<$V,$count>);
             }
         };
         ($L:ty: {$V:ty => Vertex $(,$Vs:ty => $step_mode:ident)*} => ($($A:ty),*) for $count:expr) => {
@@ -121,20 +123,16 @@ pub mod create_vertex_layout {
     #[allow(unused)]
     #[macro_export]
     macro_rules! instance_req_inner {
-        ($L:ty: {$($Vs:ty => Vertex),*} => for $count:expr) => {};
+        ($L:ty: {} => () for $count:expr) => {
+            impl InstanceRequirements for $L {
+                #[allow(unused_parens)]
+                type RequirementsI = Void;
+            }
+        };
         ($L:ty: {} => ($($A:ty),*) for $count:expr) => {
             impl InstanceRequirements for $L {
                 #[allow(unused_parens)]
-                type Requirements = ($($A),*);
-            }
-
-            impl !NoInstanceRequirements for $L {}
-        };
-
-        ($L:ty: {$V:ty => Instance $(,$Vs:ty => Vertex)*} => ($($A:ty),*) for $count:expr) => {
-            impl InstanceRequirements for $L {
-                #[allow(unused_parens)]
-                type RequirementsI = ($($A,)*VertexAttrMarker<$V,$count>);
+                type RequirementsI = ($($A),*);
             }
         };
         ($L:ty: {$V:ty => Instance $(,$Vs:ty => $step_mode:ident)*} => ($($A:ty),*) for $count:expr) => {
@@ -147,7 +145,7 @@ pub mod create_vertex_layout {
 
     #[allow(unused)]
     #[macro_export]
-    macro_rules! raw_layout {
+    macro_rules! v_raw_layout {
         ($vis:vis struct $L:ident {
             $($V:ty => $step_mode:ident for $offset:expr),*$(,)?
         }) => {
@@ -156,7 +154,7 @@ pub mod create_vertex_layout {
 
             impl $L {
                 const fn desc() -> &'static [wgpu::VertexBufferLayout<'static>] {
-                    &[$(create_vertex_layout::raw_layout_inner!($V => $step_mode for $offset)),*]
+                    &[$(create_vertex_layout::v_raw_layout_inner!($V => $step_mode for $offset)),*]
                 }
             }
 
@@ -168,7 +166,7 @@ pub mod create_vertex_layout {
 
     #[allow(unused)]
     #[macro_export]
-    macro_rules! layout_inner {
+    macro_rules! v_layout_inner {
         ({ $V:ty => $step_mode:ident } => [$($xs:expr),*] for $offset:expr) => {
             [$($xs,)* wgpu::VertexBufferLayout {
                 array_stride: std::mem::size_of::<$V>() as wgpu::BufferAddress,
@@ -178,7 +176,7 @@ pub mod create_vertex_layout {
         };
 
         ({ $V:ty => $step_mode:ident $(,$Vs:ty => $step_mode_s:ident)+} => [$($xs:expr),*] for $offset:expr) => {
-            create_vertex_layout::layout_inner!(
+            create_vertex_layout::v_layout_inner!(
                 {$($Vs => $step_mode_s),*} => [$($xs,)* (wgpu::VertexBufferLayout {
                     array_stride: std::mem::size_of::<$V>() as wgpu::BufferAddress,
                     step_mode: wgpu::VertexStepMode::$step_mode,
@@ -190,7 +188,7 @@ pub mod create_vertex_layout {
 
     #[allow(unused)]
     #[macro_export]
-    macro_rules! layout {
+    macro_rules! v_layout {
         ($vis:vis $L:ident {
             $($V:ty => $step_mode:ident),*$(,)?
         }) => {
@@ -200,7 +198,7 @@ pub mod create_vertex_layout {
             impl $L {
                 $vis const fn desc() -> &'static [wgpu::VertexBufferLayout<'static>] {
                     const ARR: [wgpu::VertexBufferLayout<'static>; create_vertex_attr::arg_len!([$($step_mode),*] for 0)] =
-                        create_vertex_layout::layout_inner!({ $($V => $step_mode),* } => [] for 0);
+                        create_vertex_layout::v_layout_inner!({ $($V => $step_mode),* } => [] for 0);
 
                     &ARR
                 }
@@ -218,10 +216,10 @@ pub mod create_vertex_layout {
 
     pub use ignore_buffer;
     pub use instance_req_inner;
-    pub use layout;
-    pub use layout_inner;
-    pub use raw_layout;
-    pub use raw_layout_inner;
+    pub use v_layout;
+    pub use v_layout_inner;
+    pub use v_raw_layout;
+    pub use v_raw_layout_inner;
     pub use vertex_req_inner;
 }
 
@@ -262,7 +260,7 @@ mod tests {
         1 => Float32,
     ]);
 
-    create_vertex_layout::raw_layout!(struct RawVertexLayout {
+    create_vertex_layout::v_raw_layout!(struct RawVertexLayout {
         Vertex => Vertex for 0,
         Instance => Instance for 2,
         VertexExtra => Vertex for 4,
@@ -279,7 +277,7 @@ mod tests {
         type RequirementsI = VertexAttrMarker<Instance, 1>;
     }
 
-    create_vertex_layout::layout!(VertexLayout {
+    create_vertex_layout::v_layout!(VertexLayout {
         Vertex => Vertex,
         Instance => Instance,
         VertexExtra => Vertex,

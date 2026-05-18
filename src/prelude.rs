@@ -13,14 +13,16 @@ pub use crate::{
             ComputeLayout, ComputeLayoutConfig, ComputeShaderConfig, CreateComputePipeline,
             RawComputeLayout, SharedComputeData,
         },
-        instanced_layout::{InstanceData, InstancedLayout, SharedDataI},
+        // instanced_layout::{InstanceData, InstancedLayout, SharedDataI},
         instances::{
             Instances, SimpleInstances, SimpleInstances2, SimpleInstances3, SimpleInstances4,
             SimpleInstances5,
         },
         layout::{
-            CreatePipeline, Layout, LayoutConfig, RawLayout, ShaderConfig, SharedData, VertexLayout,
+            CreatePipeline, Layout, LayoutBinds, LayoutConfig, RawLayout, ShaderConfig,
+            VertexLayout,
         },
+        layout_binds::{EmptyBinds, HasLayoutBinds, LayoutBind},
         shaders::{
             compute_shader::{
                 ApplyComputeShaderInstance, ComputeShader, ComputeShaderHandle,
@@ -36,7 +38,11 @@ pub use crate::{
     render_context::{
         command_encoder::CommandEncoder,
         compute_pass::ComputePass,
-        render_pass::{render_pass_mut::RenderPassMut, Instanced, RenderPass},
+        render_pass::{
+            // render_pass_mut::RenderPassMut,
+            Instanced,
+            RenderPass,
+        },
         RenderContext, RenderContextConfig,
     },
     surface::mesh::{
@@ -60,6 +66,7 @@ pub fn default<T: Default>() -> T {
     Default::default()
 }
 
+use reqs::feedable::IsFed;
 pub use strong_count::prelude::*;
 
 pub mod core {
@@ -94,6 +101,8 @@ impl Display for Invalid {
 
 #[derive(Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Void;
+
+unsafe impl IsFed for Void {}
 
 impl Debug for Void {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
